@@ -16,6 +16,7 @@
 #include "chrono.h"  
 
 #include <cplex.h>
+#include <utilities.h>
 
 #define EPS 1e-5	//CPLEX precision
 
@@ -34,12 +35,24 @@ typedef struct {
 	int callback;						// 0 no callback, 1 legacy callback, 2 generic callback
 	int num_cols;
 	int num_rows;
-	int branchcalls[2];
 	int extractPreprocessing; 			// only used to extract and save the preprocessed problem at the first branching, the problem is not solved
+
+	int ** intersections;
+	int * interSetLen;
+	int * interSetStart;
+	int numInterSet;
+	int numIntersections;
+
+
+	double* solution;					// array containing the final solution
+
 } instance;
 
 // functions to compute the solutions to the TSP using the CPLEX library
 int scpopt(instance *inst);
+
+int preprocessinglegacycallback(CPXCENVptr env, void *cbdata, int wherefrom, void *cbhandle, int type, int sos, int nodecnt, int bdcnt, const int *nodebeg,
+                         const int *indices, const char *lu, const double *bd, const double *nodeest, int *useraction_p);
 
 
 #endif   /* scp_H_ */

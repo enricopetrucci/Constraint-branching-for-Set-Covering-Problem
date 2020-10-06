@@ -49,7 +49,7 @@ void parse_command_line(int argc, char** argv, instance* inst)
 	inst->timelimit = 100000;
 	inst->seed = 0;
 	inst->plot = 0;
-	inst->callback = 0;
+	inst->callback = 1;
 	inst->extractPreprocessing = 0;
 
 	// parse the parameters

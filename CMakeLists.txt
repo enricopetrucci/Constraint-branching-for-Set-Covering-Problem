@@ -17,10 +17,13 @@ set(CMAKE_BUILD_TYPE Debug)
 # can manually add the sources using the set command as follows:
 set(SOURCES "include/chrono.h"
             "include/scp.h"
-
+            "include/utilities.h"
+            
             "src/main.c"
             "src/chrono.c"
             "src/scp.c"
+            "src/utilities.c"
+            
             )
 
 # specify the executable name, followed by all the source files
@@ -28,6 +31,8 @@ add_executable( "main.o"
                 "src/main.c"
                 "src/chrono.c"
                 "src/scp.c"
+                "src/utilities.c"
+            
               )
 
 # link CPLEX libraries
