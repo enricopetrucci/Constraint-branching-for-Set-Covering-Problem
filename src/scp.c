@@ -8,130 +8,156 @@
 
 #include "scp.h"
 
+/**
+ * It specifies the behavior for the generic callback in the branching context, that is once the LP relaxation 
+ * is solved and CPLEX decided that it is time to branch.
+ * 
+ * 
+ *  
+ * @param context CPLEX context in which the callback has been called
+ * @param contextid CPLEX context id
+ * @param userhandle pointer to our own struct inst that we gave CPLEX upon linking out callback function
+ */
 int genericcallbackfunc(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void *cbhandle) 
 {
    if ( contextid == CPX_CALLBACKCONTEXT_BRANCHING)
    {
+      // cast cbhandle to our structure of type instance
       instance *inst = (instance *)cbhandle; // casting of cbhandle
-      printf("inside branching generic callback\n");
+      
       /* Check the status of the continuous relaxation. */
       int statind;
-
       // with 0 it forces the optimality of the lp-relaxation
       CPXcallbackgetrelaxationstatus(context, &statind, 0);
-
       if (statind == CPX_STAT_OPTIMAL || statind == CPX_STAT_OPTIMAL_INFEAS)
       {
+         // Get LP relaxation solution and obj
          double *x = (double *) calloc(inst->num_cols, sizeof(double));
          double obj;
-         CPXcallbackgetrelaxationpoint(context, x, 0, inst->num_cols - 1, &obj);
-         printf("LP relaxation solved optimally it has the objective %f\n", obj);
-         int foundConstraint = 0;
-         int i=0;
-         int j=0;
-         for(; i<inst->numInterSet; i++)
+         if(CPXcallbackgetrelaxationpoint(context, x, 0, inst->num_cols-1, &obj)!=0)
+            print_error("Problems in CPXcallbackgetrelaxationpoint\n");
+         //printf("LP relaxation solved optimally it has the objective %f\n", obj);
+
+  
+         //perform constraint branching
+         if(inst->branching==1)
          {
-            printf("checking intersection of lenght = %d\n", inst->interSetLen[i]);
-            printf("j from 0 to %d\n", (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]);
-            j=0;
-            for (; j<( (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]); j++)
+            int foundConstraint = 0;
+            int i = 0;
+            int j = 0;
+            
+            // cycle on all the sets
+            for(; i < inst->numInterSet; i++)
             {
-               printf("j=%d\n", j);
-               double sum = 0;
-               for(int k = 0; k < inst->interSetLen[i]; k++)
+               // printf("checking intersection of lenght = %d\n", inst->interSetLen[i]);
+               // printf("j from 0 to %d\n", (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]);
+               j=0;
+               // cycle on all the intersection having the same lenght
+               for (; j<( (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]); j++)
                {
-                  //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
-                  printf("number %d, variable %d has coefficient %f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
-                  sum+=x[inst->intersections[inst->interSetStart[i]+j][k]];
+                  // printf("j=%d\n", j);
+                  double sum = 0;
+                  // cycle all the variables in the intersection and get the sum
+                  for(int k = 0; k < inst->interSetLen[i]; k++)
+                  {
+                     //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
+                     // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
+                     sum+=x[inst->intersections[inst->interSetStart[i]+j][k]];
+                  }
+                  // printf("Constraint: i=%d, j=%d has sum in the solution = %.20f \n", i, j, sum);   
+                  
+                  // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
+                  //if(sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i] || sum>1+1e-05*inst->interSetLen[i]) // set partitionoing case
+                  if(sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i]) // set covering
+                  {
+                     // printf("Found constraint not yet used: i=%d, j=%d\n", i, j);
+                     foundConstraint=1;
+                     break;
+                  }
                }
-               printf("Constraint: i=%d, j=%d has sum in the solution = %f \n", i, j, sum);   
-               if(sum!=0 && sum!=1)
+               if(foundConstraint==1)
                {
-                  printf("Found constraint not yet used: i=%d, j=%d\n", i, j);
-                  foundConstraint=1;
                   break;
                }
             }
-            if(foundConstraint==1)
+
+            // generating information for adding the constraint to CPLEX
+            // in the first case the sum of the variables is set equal to zero,
+            // in the second case the sum of the variables is set to be equal or greater than 1
+            double rhs1 = 0;
+            double rhs2 = 1;
+            char sense1 = 'E';
+            char sense2 = 'G';
+            int izero = 0;
+            // generating the array of values, all ones for the variables selected
+            double* values = (double *) calloc(inst->interSetLen[i], sizeof(double));
+            for(int n=0; n<inst->interSetLen[i]; n++)
             {
-               break;
+               values[n]=1;
             }
+
+            /* We want to branch. */
+            int child1, child2;
+            // print_array_int(inst->intersections[inst->interSetStart[i]+j], inst->interSetLen[i]);
+            // print_array(values, inst->interSetLen[i]);
+            // printf("adding constraints with %d variables, rhs1=%f, rhs2=%f, sense1=%c, sense2=%c, izero=%d\n", inst->interSetLen[i], rhs1, rhs2, sense1, sense2, izero);
+            
+            if(CPXcallbackmakebranch(context, 0, NULL, NULL, NULL, 1, inst->interSetLen[i], &rhs1, "E", &izero, inst->intersections[inst->interSetStart[i]+j], values, obj, &child1)!=0)
+            {
+               print_error("First branch was not succesful\n");
+            }
+            //if(CPXcallbackmakebranch(context, 0, NULL, NULL, NULL, 1, inst->interSetLen[i], &rhs2, "E", &izero, inst->intersections[inst->interSetStart[i]+j], values, obj, &child2)==0)
+            if(CPXcallbackmakebranch(context, 0, NULL, NULL, NULL, 1, inst->interSetLen[i], &rhs2, "G", &izero, inst->intersections[inst->interSetStart[i]+j], values, obj, &child2)!=0)
+            {
+               print_error("Second branch was not succesful\n");
+            }
+            free(values);
          }
-         double rhs1 = 0;
-         double rhs2 = 1;
-         char sense = 'E';
-         int izero = 0;
-         double* values = (double *) calloc(inst->interSetLen[i], sizeof(double));
-         for(int n=0; n<inst->interSetLen[i]; n++)
+         
+         
+         else if(inst->branching==2)
+         // perform most infeasible branching
          {
-            values[n]=1;
+            
+            double maxfrac = 0.0;
+            int maxvar = -1;
+
+            for(int i=0; i<inst->num_cols; i++)
+            {
+               double intval = round (x[i]);
+               double frac = fabs (intval - x[i]);
+
+               if ( frac > maxfrac ) 
+               {
+                  maxfrac = frac;
+                  maxvar = i;
+               }
+            }
+            // printf("fixing variable %d that has value %f\n", maxvar, x[maxvar]);
+            int child1, child2;
+            double const up = ceil (x[maxvar]);
+            double const down = floor (x[maxvar]);
+            CPXcallbackmakebranch(context, 1, &maxvar, "L", &up, 0, 0, NULL, NULL, NULL, NULL, NULL, obj, &child1);
+            CPXcallbackmakebranch(context, 1, &maxvar, "U", &down, 0, 0, NULL, NULL, NULL, NULL, NULL, obj, &child2);
+
          }
-
-         //    /* We want to branch. */
-         int child1, child2;
-         printf("i=%d, j=%d",i,j);
-         print_array_int(inst->intersections[inst->interSetStart[i]+j], inst->interSetLen[i]);
-         // if(CPXcallbackmakebranch(context, 0, NULL, NULL, NULL, 1, inst->interSetLen[i], &rhs1, &sense, &izero, inst->intersections[inst->interSetStart[i]+j], values, obj, &child1)==0)
-         // {
-         //    printf("First branch was succesful\n");
-         // }
-         // else
-         // {
-         //    printf("First branch was not succesful\n");
-         // }
-         // if(CPXcallbackmakebranch(context, 0, NULL, NULL, NULL, 1, inst->interSetLen[i], &rhs2, &sense, &izero, inst->intersections[inst->interSetStart[i]+j], values, obj, &child2)==0)
-         // {
-         //    printf("Second branch was succesful\n");
-         // }
-         // else
-         // {
-         //    printf("Second branch was not succesful\n");
-         // }
-
-         //free(values);
-         CPXcallbackmakebranch(context, 0, NULL, NULL, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, obj, &child1);
-         CPXcallbackmakebranch(context, 0, NULL, NULL, NULL, 0, 0, NULL, NULL, NULL, NULL, NULL, obj, &child2);
-         printf("breakpoint\n");
+         free(x);
       }
       else 
       {
          printf("LP relaxation not solved optimally\n");
       }
    }
+   //printf("callback END\n");
+   return 0;
 }
 
-void print_array_int_int(int ** arr, int nnz, int* izero, int* lengths, int len)
-{
-   for(int i=0; i < len; i++)
-   {
-      printf("length %d:", lengths[i]);
-      for(int j = 0; j < ((i == len-1) ? nnz : izero[i+1]) - izero[i]; j++)
-      {
-         print_array_int(arr[izero[i]+j], lengths[i]);
-      }
-
-   }
-}
-
-void fprint_array_int_int(FILE *f, int ** arr, int nnz, int* izero, int* lengths, int len)
-{
-   for(int i=0; i < len; i++)
-   {
-      fprintf(f, "length %d:", lengths[i]);
-      for(int j = 0; j < ((i == len-1) ? nnz : izero[i+1]) - izero[i]; j++)
-      {
-         fprint_array_int(f, arr[izero[i]+j], lengths[i]);
-      }
-
-   }
-}
 
 /**
  * Solves an instance of the scp using the CPLEX library.
  * 
  * 
- * It opens the CPLEX model, by getting a pointer to the CPLEX 
- * environment and instantiating the problem object.
+ * It creates the CPLEX environment and instantiate the CPLEX problem.
  * It then builds the model, solves the problem, gets the cost
  * of the optimal solution found, retrieves and saves this 
  * information in the problem instance and finally frees and closes
@@ -171,6 +197,7 @@ int scpopt(instance *inst)
 
    CPXsetlogfilename(env, "logfile.txt", "w");
 
+   // import problem from file
    CPXreadcopyprob(env, lp, inst->input_file, "LP");
 
 
@@ -222,6 +249,7 @@ int scpopt(instance *inst)
          inst->num_cols = CPXgetnumcols(env, lp);
          inst->num_rows = CPXgetnumrows(env, lp);
     
+         // Get the rows of the problem
          int nnz;
          int *izero = (int *) calloc(inst->num_rows, sizeof(int));
          int *indexes = (int *) calloc(inst->num_rows*inst->num_cols, sizeof(int));// this one is big!
@@ -229,24 +257,23 @@ int scpopt(instance *inst)
          int space;
          int surplus_p;
 
-
          CPXgetrows(env, lp, &nnz, izero, indexes, values, inst->num_rows*inst->num_cols, &surplus_p, 0, inst->num_rows-1);
 
          indexes = (int *) realloc(indexes, nnz*sizeof(int));// realloc should free the unused spaced of the array
          values = (double *) realloc(values, nnz*sizeof(double));// realloc should free the unused spaced of the array
          
 
+         // compute all possible intersections between the constraint and stored them in ordered length inside validIntersections 
          int ** validIntersections = (int **)calloc(inst->num_rows*(inst->num_rows-1)/2, sizeof(int*)); // superbig
          int * interSetLen = (int *)calloc(inst->num_cols, sizeof(int)); // superbig
          int * interSetStart = (int *)calloc(inst->num_cols, sizeof(int)); // superbig
          
          int numInterSet = 0;
          int numIntersection = 0;
-         
-         // select the first constraint
+
+         // cycle the constraints, choosing the first one
          for(int i = 0; i < inst->num_rows-1; i++)
          {
-            int length = (i<inst->num_rows-1 ? (izero[i+1] - izero[i]) : (nnz - izero[i]));
             //printf("Considering i = %d, starts in %d it has length %d\n", i, izero[i], length);
             //Select the second constraint
             for(int n = i+1; n < inst->num_rows; n++)
@@ -255,22 +282,25 @@ int scpopt(instance *inst)
                int m = 0;
                int intersectionLen = 0;
 
-               length = (n<inst->num_rows-1 ? izero[n+1]-izero[n] : nnz-izero[n]);
+               int length = (n<inst->num_rows-1 ? izero[n+1]-izero[n] : nnz-izero[n]);
                //printf("Compared with n = %d, that starts in %d it has length %d\n", n, izero[n], length);
+               
+               // alloc space for current intersection
                validIntersections[numIntersection] = (int *) calloc(inst->num_cols, sizeof(int));
                
+               // cycle on all the variables inside both constraints
                while(j < izero[i+1]-izero[i] && m < length)// problem for the last constraint's length
-               {
+               {  
+                  // case 1: same variable. The variable is added to the computed information
                   if(indexes[izero[i]+j]==indexes[izero[n]+m])
                   {
                      // printf("found intersection for variable %d in positions %d and %d\n", indexes[izero[i]+j], j, m);
-                  
                      validIntersections[numIntersection][intersectionLen]=indexes[izero[i]+j];
                      intersectionLen++;
                      m++;
                      j++;
                   }
-
+                  // case 2 and 3: mismatch, increase the index of corresponding to the lowest variable
                   if(indexes[izero[i]+j]<indexes[izero[n]+m])
                   {
                      j++;
@@ -281,10 +311,13 @@ int scpopt(instance *inst)
                      m++;
                   }
                }
+               // if the intersecion is non empty sort the validIntersection array and update the other arrays accordingly
                if(intersectionLen>0)
                {
-                  validIntersections[numIntersection] = (int *) realloc(validIntersections[numIntersection], intersectionLen*sizeof(int));// realloc should free the unused spaced of the array
+                  // realloc should free the unused spaced of the array
+                  validIntersections[numIntersection] = (int *) realloc(validIntersections[numIntersection], intersectionLen*sizeof(int));
                   // printf("Intersection between constraints %d and %d has %d variables\n", i, n, intersectionLen);
+                  // case 1 validIntersection is empty
                   if(numIntersection==0)
                   {
                      // printf("Case 1 empty list\n");
@@ -294,12 +327,15 @@ int scpopt(instance *inst)
                   }
                   else
                   {
+                     // cycle on all sets
                      for(int k=0; k < numInterSet; k++)
                      {
-                        //Add new set at the beginning or add new set in between two sets
+                        // Case 2 Add new set at the beginning or add new set in between two sets
                         if((k==0 && intersectionLen > interSetLen[k]) || (k>0 && intersectionLen<interSetLen[k-1] && intersectionLen>interSetLen[k]))
                         {
                            // printf("Case 2 new set in between\n");
+
+                           // Update information on interSetLen and interSetStart
                            for(int a=numInterSet; a>=k; a--)
                            {
                               interSetLen[a+1]=interSetLen[a];
@@ -309,6 +345,7 @@ int scpopt(instance *inst)
                            interSetLen[k]=intersectionLen;
                            numInterSet++;
                 
+                           // Updae infromation in validIntersection on the right with respect to k
                            for(int a=k; a<numInterSet-1; a++)
                            {
                               // printf("from last position to %d\n", interSetStart[a+1]-1);
@@ -316,11 +353,10 @@ int scpopt(instance *inst)
                               validIntersections[interSetStart[a+1]-1] = validIntersections[numIntersection];
                               validIntersections[numIntersection] = temp;
                            }
-                           //numInterSet++;
                            break;
                         }
                         
-                        //No new set needed, only update
+                        // Case 3 no new set needed, only add an intersection and update everithing accordingly
                         if(intersectionLen == interSetLen[k])
                         {
 
@@ -340,7 +376,7 @@ int scpopt(instance *inst)
                            break;
                         }
                         
-                        //Add new set at the end
+                        // Case 4 Add new set at the end
                         if(k==numInterSet-1 && intersectionLen < interSetLen[k])
                         {
 
@@ -359,11 +395,10 @@ int scpopt(instance *inst)
                   // print_array_int_int(validIntersections, numIntersection, interSetStart, interSetLen, numInterSet);
                   // printf("Total length %d\n", numIntersection);
                   // printf("breakpoint\n");
-                  ;
                } 
                else
-               {
-                  printf("free\n");
+               {  // if the intersection is empty: free allocated space
+                  //printf("free\n");
                   free(validIntersections[numIntersection]);
                }
             }  
@@ -388,21 +423,47 @@ int scpopt(instance *inst)
 
          printf("Installing generic callback\n");
          CPXcallbacksetfunc(env, lp, CPX_CALLBACKCONTEXT_BRANCHING, genericcallbackfunc, inst);
-         int ncores = 1;
-         //CPXgetnumcores(env, &ncores);
-         CPXsetintparam(env, CPX_PARAM_THREADS, ncores); // it was reset after callback
-   
+         // int ncores = 1;
+         // //CPXgetnumcores(env, &ncores);
+         // CPXsetintparam(env, CPX_PARAM_THREADS, ncores); // it was reset after callback
+         
+         free(izero);
+         free(indexes);
+         free(values);
       }
 
       // CPXwriteprob(env, presolve, "modelpresolved.lp", NULL);
       if (CPXmipopt(env, lp)) // solve the problem
-         printf(" Problems on CPXmipopt");
+         print_error(" Problems on CPXmipopt");
 
       CPXwriteprob(env, lp, "model.lp", NULL);   
+      
+      inst->solution = (double *) calloc(inst->num_cols, sizeof(double));
+      
+      double obj;
+         
+      if(CPXgetx(env, lp, inst->solution, 0, inst->num_cols-1)==0 && CPXgetbestobjval(env, lp, &obj)==0)
+      {
+         printf("Solution found with objval = %f\n", obj);
+      }
+      else
+      {
+         print_error("Problems in getting the solution");
+      }
+
+   for(int i=0; i<inst->numIntersections; i++)
+   {
+      free(inst->intersections[i]);      
    }
-   
+   if(inst->callback==1)
+   {
+      free(inst->intersections);
+      free(inst->interSetLen);
+      free(inst->interSetStart);
+   }
+   free(inst->solution);
 
-
+   }
    // free and close CPLEX model
    CPXfreeprob(env, &lp);
    CPXcloseCPLEX(&env);

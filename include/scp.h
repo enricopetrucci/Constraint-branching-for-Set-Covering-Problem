@@ -31,18 +31,20 @@ typedef struct {
 	double timelimit;					// overall time limit, in sec.s
 	char input_file[1000];		 		// input file
 	int seed;							// seed that is used by Cplex to generate random numbers in order to take decisions
-	int plot;						    // if set to one it enables plots during execution
 	int callback;						// 0 no callback, 1 legacy callback, 2 generic callback
-	int num_cols;
-	int num_rows;
+	int branching;						// select the kind of branching to use
 	int extractPreprocessing; 			// only used to extract and save the preprocessed problem at the first branching, the problem is not solved
 
-	int ** intersections;
-	int * interSetLen;
-	int * interSetStart;
-	int numInterSet;
-	int numIntersections;
 
+	int num_cols;
+	int num_rows;
+
+	// datastructure containing the constraints intersection info
+	int ** intersections;				// array that contains the pointers to arrays containing the variables in each possible intersections between constraints. It contains numIntersection pointers
+	int * interSetLen;					// the array intersections is divided into contiguous sets that contain each intersection of the same lenghts, these length are stored in interSetLen 
+	int * interSetStart;				// contains the starting position of each set.
+	int numInterSet;					// number of non zeros inside interSetLen and interSetStart 
+	int numIntersections;				// number of non zeros inside intersections
 
 	double* solution;					// array containing the final solution
 

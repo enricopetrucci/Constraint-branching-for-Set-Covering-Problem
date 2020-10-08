@@ -1,8 +1,6 @@
 /**
- * This file contains the declarations of utilities functions 
- * to print errors and arrays and plot using gnuplot.
+ * This file contains the declarations of utilities functions
  * 
- * @author Miani Eleonora
  * @author Petrucci Enrico
 */
 

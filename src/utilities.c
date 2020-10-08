@@ -1,8 +1,5 @@
 /*
- * This file contains utilities functions to print errors and arrays
- * and plots using gnuplot.
- * 
- * @author Miani Eleonora
+ * This file contains utilities functions
  * @author Petrucci Enrico
 */
 
@@ -55,6 +52,14 @@ void print_array_int(int *arr, int len)
 }
 
 
+/**
+ *  Prints the content of an array of int which has length len to file.
+ * 
+ * @param f file
+ * @param arr array to print
+ * @param len length of the array to print
+*/
+
 void fprint_array_int(FILE *f, int *arr, int len)
 {
 	fprintf(f,"\n[");
@@ -63,4 +68,51 @@ void fprint_array_int(FILE *f, int *arr, int len)
 		fprintf(f, "%d, ", arr[i]);
 	}
 	fprintf(f, "]\n");
+}
+
+
+/**
+ *  Prints the content of an array of arrays of int which has length len.
+ * 
+ * @param arr array to print
+ * @param nnz number of elements in arr
+ * @param izero array containing beginning index for each set of elements with the same lenght
+ * @param lengths array containing length for each set
+ * @param len length of the array to print
+*/
+void print_array_int_int(int ** arr, int nnz, int* izero, int* lengths, int len)
+{
+   for(int i=0; i < len; i++)
+   {
+      printf("length %d:", lengths[i]);
+      for(int j = 0; j < ((i == len-1) ? nnz : izero[i+1]) - izero[i]; j++)
+      {
+         print_array_int(arr[izero[i]+j], lengths[i]);
+      }
+
+   }
+}
+
+
+/**
+ *  Prints the content of an array of arrays of int which has length len to file.
+ * 
+ * @param f file
+ * @param arr array to print
+ * @param nnz number of elements in arr
+ * @param izero array containing beginning index for each set of elements with the same lenght
+ * @param lengths array containing length for each set
+ * @param len length of the array to print
+*/
+void fprint_array_int_int(FILE *f, int ** arr, int nnz, int* izero, int* lengths, int len)
+{
+   for(int i=0; i < len; i++)
+   {
+      fprintf(f, "length %d:", lengths[i]);
+      for(int j = 0; j < ((i == len-1) ? nnz : izero[i+1]) - izero[i]; j++)
+      {
+         fprint_array_int(f, arr[izero[i]+j], lengths[i]);
+      }
+
+   }
 }
