@@ -33,6 +33,9 @@ typedef struct {
 	int seed;							// seed that is used by Cplex to generate random numbers in order to take decisions
 	int callback;						// 0 no callback, 1 legacy callback, 2 generic callback
 	int branching;						// select the kind of branching to use
+	
+	int threads;						// number of threads used in the computation
+	int constraintBranchVer;			// version for the branching constraint
 	int extractPreprocessing; 			// only used to extract and save the preprocessed problem at the first branching, the problem is not solved
 
 
@@ -45,9 +48,12 @@ typedef struct {
 	int * interSetStart;				// contains the starting position of each set.
 	int numInterSet;					// number of non zeros inside interSetLen and interSetStart 
 	int numIntersections;				// number of non zeros inside intersections
+	
+	
 
 	double* solution;					// array containing the final solution
-
+	int shortestConstraint;
+	int lowestNumVariables;
 } instance;
 
 // functions to compute the solutions to the TSP using the CPLEX library
@@ -55,6 +61,23 @@ int scpopt(instance *inst);
 
 int preprocessinglegacycallback(CPXCENVptr env, void *cbdata, int wherefrom, void *cbhandle, int type, int sos, int nodecnt, int bdcnt, const int *nodebeg,
                          const int *indices, const char *lu, const double *bd, const double *nodeest, int *useraction_p);
+
+void populateIntesectionsOf2(int* izero, int* indexes, int nnz, instance* inst);
+
+void populateIntesectionsOf3(int* izero, int* indexes, int nnz, instance* inst);
+
+void populateIntesectionsOf4(instance* inst);
+
+void performPreprocessing(CPXENVptr env, CPXLPptr lp, instance* inst);
+
+void findBranchingConstraint0(int* n, int* m, double* x, instance* inst);
+
+void findBranchingConstraint1(int* n, int* m, double* x, instance* inst, double delta);
+
+void findBranchingConstraint2(int* n, int* m, double* x, instance* inst, int* fixed);
+
+
+
 
 
 #endif   /* scp_H_ */

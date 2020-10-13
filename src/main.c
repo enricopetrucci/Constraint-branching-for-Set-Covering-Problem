@@ -16,6 +16,7 @@ void parse_command_line(int argc, char** argv, instance* inst);
 
 int main(int argc, char** argv)
 {
+	double start = second();
 	// instance of the scp problem to be solved
 	instance inst;
 
@@ -26,6 +27,8 @@ int main(int argc, char** argv)
 		
 	// build the CPLEX model and compute the solution
 	scpopt(&inst);
+
+	printf("total execution time %f sec.\n", second()-start);
 	return 0;
 }
 
@@ -51,7 +54,8 @@ void parse_command_line(int argc, char** argv, instance* inst)
 	inst->callback = 1;
 	inst->extractPreprocessing = 0;
 	inst->branching = 1;
-
+	inst->constraintBranchVer = 0;
+	inst->threads = 0;
 	// parse the parameters
 	for (int i = 1; i < argc; i++)
 	{
@@ -63,6 +67,9 @@ void parse_command_line(int argc, char** argv, instance* inst)
  		if (strcmp(argv[i], "-callback") == 0) { inst->callback = atoi(argv[++i]); continue; }                      	// determine callback behavior
 		if (strcmp(argv[i], "-extractPreprocessing") == 0) { inst->extractPreprocessing = atoi(argv[++i]); continue; } 	// reduce the computation to the preprocessing phase and extract the core of the problem
 		if (strcmp(argv[i], "-branching") == 0) { inst->branching = atoi(argv[++i]); continue; } 						// determine branching behavior
+		if (strcmp(argv[i], "-constraintBranchVer") == 0) { inst->constraintBranchVer = atoi(argv[++i]); continue; } 	// determine constraint branching behavior
+		if (strcmp(argv[i], "-threads") == 0) { inst->threads = atoi(argv[++i]); continue; } 							// determine the number of threads
+
 
 
 	}
