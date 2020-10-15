@@ -49,11 +49,13 @@ typedef struct {
 	int numInterSet;					// number of non zeros inside interSetLen and interSetStart 
 	int numIntersections;				// number of non zeros inside intersections
 	
-	
+	int* constraintBranching;
+	int* defaultBranching;
 
 	double* solution;					// array containing the final solution
 	int shortestConstraint;
 	int lowestNumVariables;
+	int* variableFreq;
 } instance;
 
 // functions to compute the solutions to the TSP using the CPLEX library
@@ -75,6 +77,15 @@ void findBranchingConstraint0(int* n, int* m, double* x, instance* inst);
 void findBranchingConstraint1(int* n, int* m, double* x, instance* inst, double delta);
 
 void findBranchingConstraint2(int* n, int* m, double* x, instance* inst, int* fixed);
+
+void findBranchingConstraint3(int* n, int* m, double* x, instance* inst);
+
+void findBranchingConstraint4(int* n, int* m, double* x, instance* inst, int* fixed);
+
+void findBranchingConstraint5(int* n, int* m, double* x, instance* inst, int* fixed);
+
+void computeVariableFrequency(int* izero, int* indexes, int nnz, instance* inst);
+
 
 
 

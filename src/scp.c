@@ -36,6 +36,9 @@ int genericcallbackfunc(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void *
          int statind;
          // with 0 it forces the optimality of the lp-relaxation
          CPXcallbackgetrelaxationstatus(context, &statind, 0);
+         int threadNum;
+         CPXcallbackgetinfoint(context, CPXCALLBACKINFO_THREADID, &threadNum);
+
          if (statind == CPX_STAT_OPTIMAL || statind == CPX_STAT_OPTIMAL_INFEAS)
          {
             // Get LP relaxation solution and obj
@@ -59,7 +62,7 @@ int genericcallbackfunc(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void *
                      findBranchingConstraint0(&i, &j, x, inst);
                      break;
                   case 1:
-                     findBranchingConstraint1(&i, &j, x, inst, 0.1);
+                     findBranchingConstraint1(&i, &j, x, inst, 0.005);
                      break;
                   case 2:
                   {
@@ -85,11 +88,62 @@ int genericcallbackfunc(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void *
                      findBranchingConstraint2(&i, &j, x, inst, fixed);
                      break;
                   }
- 
+                  case 3:
+                     findBranchingConstraint3(&i, &j, x, inst);
+                     break;
+                  case 4:
+                  {
+                     double *ub = (double *) calloc(inst->num_cols, sizeof(double));
+                     double *lb = (double *) calloc(inst->num_cols, sizeof(double));
+
+                     CPXcallbackgetlocalub(context, ub, 0, inst->num_cols-1);
+                     CPXcallbackgetgloballb (context, lb, 0, inst->num_cols-1);
+
+                     int *fixed = (int *) calloc(inst->num_cols, sizeof(int));
+                     int count = 0;
+                     for(int i=0; i<inst->num_cols; i++)
+                     {
+                        if(ub[i]==lb[i])
+                           {
+                              fixed[i]=1;
+                              count++;
+                           }
+                        else
+                           fixed[i]=0;
+                     }
+                     //printf("locally %d variables are fixed out of %d\n", count, inst->num_cols);
+                     findBranchingConstraint4(&i, &j, x, inst, fixed);
+                     break;
+                  }
+                  case 5:
+                  {
+                     double *ub = (double *) calloc(inst->num_cols, sizeof(double));
+                     double *lb = (double *) calloc(inst->num_cols, sizeof(double));
+
+                     CPXcallbackgetlocalub(context, ub, 0, inst->num_cols-1);
+                     CPXcallbackgetgloballb (context, lb, 0, inst->num_cols-1);
+
+                     int *fixed = (int *) calloc(inst->num_cols, sizeof(int));
+                     int count = 0;
+                     for(int i=0; i<inst->num_cols; i++)
+                     {
+                        if(ub[i]==lb[i])
+                           {
+                              fixed[i]=1;
+                              count++;
+                           }
+                        else
+                           fixed[i]=0;
+                     }
+                     //printf("locally %d variables are fixed out of %d\n", count, inst->num_cols);
+                     findBranchingConstraint5(&i, &j, x, inst, fixed);
+                     break;       
+                  }           
                }
                
                if (i!= -1)
                {
+                  inst->constraintBranching[threadNum]++;
                   // generating information for adding the constraint to CPLEX
                   // in the first case the sum of the variables is set equal to zero,
                   // in the second case the sum of the variables is set to be equal or greater than 1
@@ -127,13 +181,15 @@ int genericcallbackfunc(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void *
                   }
                   free(values);
                }
+               else
+               {
+                  inst->defaultBranching[threadNum]++;
+               }
             }
-            
             
             else if(inst->branching==-1)
             // perform most infeasible branching
             {
-               
                double maxfrac = 0.0;
                int maxvar = -1;
 
@@ -154,7 +210,6 @@ int genericcallbackfunc(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void *
                double const down = floor (x[maxvar]);
                CPXcallbackmakebranch(context, 1, &maxvar, "L", &up, 0, 0, NULL, NULL, NULL, NULL, NULL, obj, &child1);
                CPXcallbackmakebranch(context, 1, &maxvar, "U", &down, 0, 0, NULL, NULL, NULL, NULL, NULL, obj, &child2);
-
             }
             free(x);
          }
@@ -211,27 +266,14 @@ int scpopt(instance *inst)
    // set time limit based on value passed as command line argument
    CPXsetdblparam(env, CPX_PARAM_TILIM, inst->timelimit);
    char str[80];
-   strcpy(str, "logfile_");
-   
+
    if(inst->branching==0)
    {
-      strcat(str, "defaultBranching.txt");
+      sprintf(str, "logfile_defaultBranching.txt");
    }
    else
    {
-      strcat(str, "constraintBranching_version");
-      if(inst->constraintBranchVer==0)
-      {
-         strcat(str, "0.txt");
-      }
-      if(inst->constraintBranchVer==1)
-      {
-         strcat(str, "1.txt");
-      }
-      if(inst->constraintBranchVer==2)
-      {
-         strcat(str, "2.txt");
-      }
+      sprintf(str, "logfile_constraintBranching_version%d.txt", inst->constraintBranchVer);
    }
    
    CPXsetlogfilename(env, str, "w");
@@ -250,15 +292,19 @@ int scpopt(instance *inst)
    {
       printf("Installing generic callback\n");
       CPXcallbacksetfunc(env, lp, CPX_CALLBACKCONTEXT_BRANCHING, genericcallbackfunc, inst);
-      
-      
+            
       if (inst->threads==0)
          CPXgetnumcores(env, &inst->threads);
 
       CPXsetintparam(env, CPX_PARAM_THREADS, inst->threads);
-         
+
+      inst->constraintBranching=(int *) calloc(inst->threads, sizeof(int));
+      inst->defaultBranching=(int *) calloc(inst->threads, sizeof(int));
+
+
       if(inst->branching == 1)
       {
+
          // Get the rows of the problem
          int nnz;
          int *izero = (int *) calloc(inst->num_rows, sizeof(int));
@@ -278,10 +324,18 @@ int scpopt(instance *inst)
          
          // start = second();
          // populateIntesectionsOf3(izero, indexes, nnz, inst);  
-         // //populateIntesectionsOf4(inst);
+         // //populateIntesectionsOf4(inst);// not working yet
          // end = second();
          // printf("Found %d constraint intersections in %f\n", inst->numIntersections, end-start);
          
+
+         start = second();
+         computeVariableFrequency(izero, indexes, nnz, inst);  
+         //populateIntesectionsOf4(inst);// not working yet
+         end = second();
+         printf("Computed variable frequencies in %f\n", end-start);
+         
+         print_array_int(inst->variableFreq, inst->num_cols);
          // int ncores = 1;
          // //CPXgetnumcores(env, &ncores);
          // CPXsetintparam(env, CPX_PARAM_THREADS, ncores); // it was reset after callback
@@ -306,6 +360,15 @@ int scpopt(instance *inst)
       
       if(inst->branching == 1)
       {
+         int constraintCount=0;
+         int defaultCount=0;
+
+         for(int i=0; i<inst->threads; i++)
+         {
+            constraintCount += (inst->constraintBranching[i]);
+            defaultCount += (inst->defaultBranching[i]);
+         }
+         printf("%d constraint branching\n%d default branching\n", constraintCount, defaultCount);
          for(int i=0; i<inst->numIntersections; i++)
          {
             free(inst->intersections[i]);      
@@ -614,6 +677,8 @@ void populateIntesectionsOf2(int* izero, int* indexes, int nnz, instance* inst)
    inst->shortestConstraint = inst->interSetLen[0];
    inst->lowestNumVariables = inst->interSetLen[0];
 }
+
+
 
 
 void findBranchingConstraint0(int* n, int* m, double* x, instance* inst)
@@ -1031,7 +1096,7 @@ void populateIntesectionsOf4(instance* inst)
    int index_set_second = 0;
    
    // cycle the constraints, choosing the first one
-   for(int i = 0; i < (inst -> numIntersections-1)/100; i++)
+   for(int i = 0; i < (inst -> numIntersections-1); i++)
    {
       if(i==inst->interSetStart[index_set_first+1])
          index_set_first++;
@@ -1154,7 +1219,7 @@ void populateIntesectionsOf4(instance* inst)
                }
             }
             numIntersections++;
-            printf("%d\n",numIntersections);
+            //printf("%d\n",numIntersections);
             // printf("Updated len and start:\n");
             // print_array_int(inst->interSetLen, inst->numInterSet);
             // print_array_int(inst->interSetStart, inst->numInterSet);
@@ -1178,7 +1243,7 @@ void populateIntesectionsOf4(instance* inst)
    printf("Total length %d max length %d\n", numIntersections, inst->numIntersections*(inst->numIntersections-1)/2);
 
    FILE *f;
-   f = fopen("Intersections.txt", "w");
+   f = fopen("Intersections4.txt", "w");
 
    fprint_array_int_int(f, intersections, numIntersections, interSetStart, interSetLen, numInterSet);
    fclose(f);
@@ -1191,5 +1256,277 @@ void populateIntesectionsOf4(instance* inst)
    inst->interSetStart = interSetStart;
    inst->numInterSet = numInterSet;
    inst->numIntersections = numIntersections;
+}
+
+
+
+
+/**
+ * Branch on the constraint with the highest number of variables that are in the interval 0.5+-delta
+ * 
+ * 
+ */
+void findBranchingConstraint3(int* n, int* m, double* x, instance* inst)
+{
+   int foundConstraint = 0;
    
+   int best_i=-1;
+   int best_j=-1;
+   double MinIntersectionValue = 1.0;
+
+
+   // cycle on all the sets
+   for(int i = 0; i < inst->numInterSet; i++)
+   {
+      // printf("checking intersection of lenght = %d\n", inst->interSetLen[i]);
+      // printf("j from 0 to %d\n", (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]);
+      // cycle on all the intersection having the same lenght
+      for (int j = 0; j<( (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]); j++)
+      {
+         // printf("j=%d\n", j);
+         double sum = 0;
+         // cycle all the variables in the intersection and get the sum
+         for(int k = 0; k < inst->interSetLen[i]; k++)
+         {
+            //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
+            // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
+            sum+=x[inst->intersections[inst->interSetStart[i]+j][k]];
+         }
+         // printf("Constraint: i=%d, j=%d has sum in the solution = %.20f \n", i, j, sum);   
+         
+         // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
+         // printf("Comparing lowest sum %f with current sum %f\n", MinIntersectionValue, sum);
+         if(sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i] && sum<MinIntersectionValue) // the constraint is violated
+         {
+            //printf("Found constraint not yet used: i=%d, j=%d, countHighInfeas = %d\n", i, j, countHighInfeas);
+            best_i=i;
+            best_j=j;
+            MinIntersectionValue = sum;
+            foundConstraint++;
+         }
+      }
+   }
+   if(foundConstraint > 0)
+   {
+      if(foundConstraint>1)
+         // printf("constraint updated %d times\n", foundConstraint);
+      *n = best_i;
+      *m = best_j;
+   }
+   else
+   {
+      //printf("performing standard branching\n");
+      *n=-1;
+      *m=-1;
+   }
+   // printf("breakpoint\n");
+}
+
+
+
+/**
+ * Branch on the constraint with the highest number of unfixed variables
+ * 
+ * 
+ */
+
+void findBranchingConstraint4(int* n, int* m, double* x, instance* inst, int* fixed)
+{
+   double delta=0;
+   int foundConstraint = 0;
+   
+   int best_i=-1;
+   int best_j=-1;
+   int MaxFree = 0;
+   double MinIntersectionValue = 1.0;
+
+
+
+   // cycle on all the sets
+   for(int i = 0; i < inst->numInterSet; i++)
+   {
+      // printf("checking intersection of lenght = %d\n", inst->interSetLen[i]);
+      // printf("j from 0 to %d\n", (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]);
+      // cycle on all the intersection having the same lenght
+      for (int j = 0; j<( (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]); j++)
+      {
+         // printf("j=%d\n", j);
+         double sum = 0;
+         int countFixed = 0;
+         // cycle all the variables in the intersection and get the sum
+         for(int k = 0; k < inst->interSetLen[i]; k++)
+         {
+            //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
+            // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
+            sum+=x[inst->intersections[inst->interSetStart[i]+j][k]];
+            countFixed += fixed[inst->intersections[inst->interSetStart[i]+j][k]];
+            
+         }
+         // printf("Constraint: i=%d, j=%d has sum in the solution = %.20f \n", i, j, sum);   
+         
+         // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
+         if(sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i] && ((inst->interSetLen[i]-countFixed > MaxFree) || (inst->interSetLen[i]-countFixed == MaxFree && sum<MinIntersectionValue))) // the constraint is violated
+         {
+            //printf("Found constraint not yet used: i=%d, j=%d, countHighInfeas = %d\n", i, j, countHighInfeas);
+            best_i=i;
+            best_j=j;
+            MaxFree = inst->interSetLen[i]-countFixed;
+            MinIntersectionValue = sum;
+       
+            foundConstraint++;
+         }
+      }
+   }
+   if(foundConstraint > 0)
+   {
+      if( MaxFree < inst->lowestNumVariables)
+      {
+         inst->lowestNumVariables = MaxFree;
+         printf("branching on a constraint with %d unfixed variables\n", MaxFree);
+         
+      }
+      //printf("constraint updated %d times: branching constraint has %d unfixed variables out of the total %d\n", foundConstraint, MaxFree, inst->interSetLen[best_i]);
+      *n = best_i;
+      *m = best_j;
+   }
+   else
+   {
+      //printf("performing standard branching\n");
+      *n=-1;
+      *m=-1;
+   }
+   //printf("breakpoint\n");  
+}
+
+
+
+/**
+ * Branch on the constraint with the highest number of unfixed variables
+ * 
+ * 
+ */
+
+void findBranchingConstraint5(int* n, int* m, double* x, instance* inst, int* fixed)
+{
+   double delta=0;
+   int foundConstraint = 0;
+   
+   int best_i=-1;
+   int best_j=-1;
+   int MaxFree = 0;
+   double MinIntersectionValue = 1.0;
+
+   int mostFrequentUnfixedVar = 0;
+
+   for(int i=0; i<inst->num_cols; i++)
+   {
+      if(fixed[inst->variableFreq[i]]==0)
+      {
+         mostFrequentUnfixedVar = i;
+         break;
+      }
+   }
+
+
+   // cycle on all the sets
+   for(int i = 0; i < inst->numInterSet; i++)
+   {
+      // printf("checking intersection of lenght = %d\n", inst->interSetLen[i]);
+      // printf("j from 0 to %d\n", (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]);
+      // cycle on all the intersection having the same lenght
+      for (int j = 0; j<( (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]); j++)
+      {
+         // printf("j=%d\n", j);
+         double sum = 0;
+         int containsFreqVar = 0;
+         // cycle all the variables in the intersection and get the sum
+         for(int k = 0; k < inst->interSetLen[i]; k++)
+         {
+            //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
+            // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
+            sum+=x[inst->intersections[inst->interSetStart[i]+j][k]];
+            if(inst->intersections[inst->interSetStart[i]+j][k]==mostFrequentUnfixedVar)
+            {
+               containsFreqVar = 1;
+            }
+         }
+         // printf("Constraint: i=%d, j=%d has sum in the solution = %.20f \n", i, j, sum);   
+         
+         // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
+         if(containsFreqVar==1 && sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i]) // the constraint is violated
+         {
+            //printf("Found constraint not yet used: i=%d, j=%d, countHighInfeas = %d\n", i, j, countHighInfeas);
+            best_i=i;
+            best_j=j;
+            foundConstraint++;
+            break;
+         }
+      }
+   }
+   if(foundConstraint > 0)
+   {
+      if( MaxFree < inst->lowestNumVariables)
+      {
+         inst->lowestNumVariables = MaxFree;
+         printf("branching on a constraint with %d unfixed variables\n", MaxFree);
+         
+      }
+      //printf("constraint updated %d times: branching constraint has %d unfixed variables out of the total %d\n", foundConstraint, MaxFree, inst->interSetLen[best_i]);
+      *n = best_i;
+      *m = best_j;
+   }
+   else
+   {
+      //printf("performing standard branching\n");
+      *n=-1;
+      *m=-1;
+   }
+   //printf("breakpoint\n");  
+}
+
+
+
+  
+/** 
+ * Compute all possible intersections between the 
+ * constraint and stored them sorted by length inside inst->intersections
+ *  
+ * @param izero starting index for each constraint
+ * @param indexes indexes of the variables in the constraints
+ * @param nnz number of non zeros inside index
+ * @param inst instance of our problem
+ * 
+ */   
+void computeVariableFrequency(int* izero, int* indexes, int nnz, instance* inst)
+{
+   int* frequencies = (int *)calloc(inst->num_cols, sizeof(int));
+   int* variables = (int *)calloc(inst->num_cols, sizeof(int));
+   
+   // cycle the constraints, choosing the first one
+   for(int i = 0; i < nnz; i++)
+   {
+      frequencies[indexes[i]]++;
+   }
+   
+   print_array_int(frequencies, inst->num_cols);
+   int argMax;
+   int Max;
+   
+   for (int i = 0; i < inst->num_cols; i++) 
+   {  
+      argMax = 0;
+      Max = 0;
+   
+      for(int j = 0; j < inst->num_cols; j++)
+      {
+         if(frequencies[j]>Max)
+         {
+            Max=frequencies[j];
+            argMax=j;
+         }
+      }
+      variables[i]=argMax;
+      frequencies[argMax]=0;
+   } 
+   inst->variableFreq = variables;
 }
