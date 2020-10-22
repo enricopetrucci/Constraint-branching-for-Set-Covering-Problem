@@ -18,20 +18,23 @@ set(CMAKE_BUILD_TYPE Debug)
 set(SOURCES "include/chrono.h"
             "include/scp.h"
             "include/utilities.h"
-            
+            "src/scoreComparison.c"
             "src/main.c"
             "src/chrono.c"
             "src/scp.c"
             "src/utilities.c"
+            "src/preprocessing.c"
             
             )
 
 # specify the executable name, followed by all the source files
 add_executable( "main.o"
                 "src/main.c"
+                "src/scoreComparison.c"
                 "src/chrono.c"
                 "src/scp.c"
                 "src/utilities.c"
+                "src/preprocessing.c"
             
               )
 

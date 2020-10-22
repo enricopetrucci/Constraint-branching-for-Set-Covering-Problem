@@ -23,11 +23,22 @@ int main(int argc, char** argv)
 	// parse input from command line and populate the instance
 	parse_command_line(argc, argv, &inst);
 
+	if(inst.extractPreprocessing==1)
+	{
+		scpPreprocessing(&inst);   
+	}
+   else if(inst.scoreComparison==1)
+	{
+		scoreComparison(&inst);
+	}
+	else
+	{
+		// build the CPLEX model and compute the solution
+		scpopt(&inst);
+	}
 
 		
-	// build the CPLEX model and compute the solution
-	scpopt(&inst);
-
+	
 	printf("total execution time %f sec.\n", second()-start);
 	return 0;
 }
@@ -56,6 +67,7 @@ void parse_command_line(int argc, char** argv, instance* inst)
 	inst->branching = 1;
 	inst->constraintBranchVer = 0;
 	inst->threads = 0;
+	inst->scoreComparison = 0;
 	// parse the parameters
 	for (int i = 1; i < argc; i++)
 	{
@@ -69,8 +81,7 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		if (strcmp(argv[i], "-branching") == 0) { inst->branching = atoi(argv[++i]); continue; } 						// determine branching behavior
 		if (strcmp(argv[i], "-constraintBranchVer") == 0) { inst->constraintBranchVer = atoi(argv[++i]); continue; } 	// determine constraint branching behavior
 		if (strcmp(argv[i], "-threads") == 0) { inst->threads = atoi(argv[++i]); continue; } 							// determine the number of threads
-
-
+		if (strcmp(argv[i], "-scoreComparison") == 0) { inst->scoreComparison = atoi(argv[++i]); continue; } 			// only perform score comparison 
 
 	}
 }

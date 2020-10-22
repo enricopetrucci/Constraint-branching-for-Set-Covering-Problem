@@ -70,6 +70,24 @@ void fprint_array_int(FILE *f, int *arr, int len)
 	fprintf(f, "]\n");
 }
 
+/**
+ *  Prints the content of an array of int which has length len to file.
+ * 
+ * @param f file
+ * @param arr array to print
+ * @param len length of the array to print
+*/
+
+void fprint_array(FILE *f, double *arr, int len)
+{
+	fprintf(f,"\n[");
+	for (int i=0; i < len; i++)
+	{
+		fprintf(f, "%f, ", arr[i]);
+	}
+	fprintf(f, "]\n");
+}
+
 
 /**
  *  Prints the content of an array of arrays of int which has length len.

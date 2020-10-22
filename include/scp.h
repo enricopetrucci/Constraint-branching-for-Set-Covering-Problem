@@ -37,6 +37,7 @@ typedef struct {
 	int threads;						// number of threads used in the computation
 	int constraintBranchVer;			// version for the branching constraint
 	int extractPreprocessing; 			// only used to extract and save the preprocessed problem at the first branching, the problem is not solved
+	int scoreComparison; 			// only used to compare the scores of constraint branching and variable branching
 
 
 	int num_cols;
@@ -56,6 +57,8 @@ typedef struct {
 	int shortestConstraint;
 	int lowestNumVariables;
 	int* variableFreq;
+
+
 } instance;
 
 // functions to compute the solutions to the TSP using the CPLEX library
@@ -85,6 +88,22 @@ void findBranchingConstraint4(int* n, int* m, double* x, instance* inst, int* fi
 void findBranchingConstraint5(int* n, int* m, double* x, instance* inst, int* fixed);
 
 void computeVariableFrequency(int* izero, int* indexes, int nnz, instance* inst);
+
+int scoreComparison(instance *inst);
+
+int scpPreprocessing(instance *inst);
+
+void populateIntesectionsOf2NoDup(int* izero, int* indexes, int nnz, instance* inst);
+
+void computeConstraintsProductScores(CPXENVptr env, CPXLPptr lp, instance* inst, double* rootSolution, double obj, int* cstat, int* rstat,  double* productScoreConstraints, double* scoreDown, double*scoreUp, double epsilon);
+
+void computeVariablesProductScores(CPXENVptr env, CPXLPptr lp, instance* inst, double* rootSolution, double obj, int* cstat, int* rstat, double* productScoreVariables, double* pseudocostDown, double* pseudocostUp, double epsilon);
+
+void computePrevisionConstraintsScores(instance* inst, double* rootSolution, double* pseudocostDown, double* pseudocostUp, double* constraintScorePrevision, double* estimateScoreDown, double* estimateScoreUp, double epsilon, int policy);
+
+
+
+
 
 
 
