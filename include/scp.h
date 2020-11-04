@@ -31,7 +31,7 @@ typedef struct {
 	double timelimit;					// overall time limit, in sec.s
 	char input_file[1000];		 		// input file
 	int seed;							// seed that is used by Cplex to generate random numbers in order to take decisions
-	int callback;						// 0 no callback, 1 legacy callback, 2 generic callback
+	int callback;						// 0 generic callback, 1 legacy callback 
 	int branching;						// select the kind of branching to use
 	
 	int threads;						// number of threads used in the computation
@@ -49,15 +49,24 @@ typedef struct {
 	int * interSetStart;				// contains the starting position of each set.
 	int numInterSet;					// number of non zeros inside interSetLen and interSetStart 
 	int numIntersections;				// number of non zeros inside intersections
-	
+
+	double startTime;	
 	int* constraintBranching;
 	int* defaultBranching;
+
+	double* timeInCallback;
+	double* timeFindingConstraint;
+
 
 	double* solution;					// array containing the final solution
 	int shortestConstraint;
 	int lowestNumVariables;
 	int* variableFreq;
 
+	int ** varConstrTable;
+    int* constraintCounter; 
+    int ** varConstrDim;
+ 
 
 } instance;
 
@@ -100,6 +109,24 @@ void computeConstraintsProductScores(CPXENVptr env, CPXLPptr lp, instance* inst,
 void computeVariablesProductScores(CPXENVptr env, CPXLPptr lp, instance* inst, double* rootSolution, double obj, int* cstat, int* rstat, double* productScoreVariables, double* pseudocostDown, double* pseudocostUp, double epsilon);
 
 void computePrevisionConstraintsScores(instance* inst, double* rootSolution, double* pseudocostDown, double* pseudocostUp, double* constraintScorePrevision, double* estimateScoreDown, double* estimateScoreUp, double epsilon, int policy);
+
+void addBrachingChilds(CPXCENVptr env, void *cbdata, int wherefrom, double obj, int i, int j, instance* inst);
+
+int genericcallbackfunc(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void *cbhandle);
+
+double findBestBranchingConstraint(int *n, int *m, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
+
+double findBestBranchingConstraintContainingVar(int *n, int bestVar, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
+
+
+void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance* inst);
+
+void solveUsingGenericCallback(CPXENVptr env, CPXLPptr lp, instance* inst);
+
+void populateVariableConstraintTable(instance *inst);
+
+void addBrachingChildsReduced(CPXCENVptr env, void *cbdata, int wherefrom, double obj, int bestVar, int i, instance* inst);
+
 
 
 

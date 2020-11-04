@@ -16,9 +16,10 @@ void parse_command_line(int argc, char** argv, instance* inst);
 
 int main(int argc, char** argv)
 {
-	double start = second();
 	// instance of the scp problem to be solved
 	instance inst;
+	
+	inst.startTime = second();
 
 	// parse input from command line and populate the instance
 	parse_command_line(argc, argv, &inst);
@@ -39,7 +40,7 @@ int main(int argc, char** argv)
 
 		
 	
-	printf("total execution time %f sec.\n", second()-start);
+	printf("total execution time %f sec.\n", second()-inst.startTime);
 	return 0;
 }
 

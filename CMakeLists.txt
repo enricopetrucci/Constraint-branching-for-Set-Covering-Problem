@@ -24,6 +24,7 @@ set(SOURCES "include/chrono.h"
             "src/scp.c"
             "src/utilities.c"
             "src/preprocessing.c"
+            "src/genericCallbacks.c"
             
             )
 
@@ -35,7 +36,7 @@ add_executable( "main.o"
                 "src/scp.c"
                 "src/utilities.c"
                 "src/preprocessing.c"
-            
+                "src/genericCallbacks.c"
               )
 
 # link CPLEX libraries

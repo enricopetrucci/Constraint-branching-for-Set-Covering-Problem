@@ -56,7 +56,7 @@ int scpPreprocessing(instance *inst)
 
 
 /** 
- * Callback function only useful save the preprocessed redced problem as a new one.
+ * Callback function only useful to save the preprocessed redced problem as a new one.
  * 
  * @param type specifies the type of branch CPX_TYPE_VAR(0): variable branch. CPX_TYPE_SOS1(1): SOS1 branch. CPX_TYPE_SOS2(2): SOS2 branch. CPX_TYPE_ANY('A'): multiple bound changes or constraints will be used for branching
  * @param sos Specifies the special ordered set
