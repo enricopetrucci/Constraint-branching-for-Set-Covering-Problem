@@ -177,6 +177,27 @@ void fprint_array_int_int1(FILE* f, int ** arr, int** lengths, int* counter, int
    }
 }
 
+/**
+ *  Prints the content of an array of arrays of int which has length len.
+ * 
+ * @param arr array to print
+ * @param nnz number of elements in arr
+ * @param izero array containing beginning index for each set of elements with the same lenght
+ * @param lengths array containing length for each set
+ * @param len length of the array to print
+*/
+void fprint_array_int_int2(FILE* f, int ** arr, int* counter, int len)
+{
+   for(int i = 0; i < len; i++)
+   {
+	   	if(counter[i]>0)
+		{
+			//fprintf(f, "variable %d in constraints:",i);
+			fprint_array_int(f, arr[i], counter[i]);
+		}
+   }
+}
+
 
 /**
  *  Prints the content of an array of arrays of int which has length len to file.

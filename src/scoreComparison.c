@@ -100,7 +100,7 @@ int scoreComparison(instance *inst)
     indexes = (int *) realloc(indexes, nnz*sizeof(int));// realloc should free the unused spaced of the array
     values = (double *) realloc(values, nnz*sizeof(double));// realloc should free the unused spaced of the array
     double start = second();
-    populateIntesectionsOf2(izero, indexes, nnz, inst);
+    populateIntersectionsOf2Sorted(izero, indexes, nnz, inst);
     double end = second();
     printf("Found %d constraint intersections in %f\n", inst->numIntersections, end-start);
 
@@ -316,111 +316,100 @@ void computeConstraintsProductScores(CPXENVptr env, CPXLPptr lp, instance* inst,
     double progressPerc = progressPercStep;
     
     // cycle on all the sets
-    for(int i=0; i < inst->numInterSet; i++)
+    for(int i=0; i < inst->numIntersections; i++)
     {
         double delta1;
         double delta2;
-        // printf("checking intersection of lenght = %d\n", inst->interSetLen[i]);
-        // printf("j from 0 to %d\n", (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]);
-        int j=0;
-        // cycle on all the intersection having the same lenght
-        for (; j<( (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]); j++)
+        double sum = 0;
+        // cycle all the variables in the intersection and get the sum
+        for(int k = 0; k < inst->intersectionsLengths[i]; k++)
         {
-            // printf("j=%d\n", j);
-            double sum = 0;
-            // cycle all the variables in the intersection and get the sum
-            for(int k = 0; k < inst->interSetLen[i]; k++)
+            sum+=rootSolution[inst->intersections[i][k]];
+        }
+
+        if(sum>1e-05*inst->intersectionsLengths[i] && sum<1-1e-05*inst->intersectionsLengths[i]) // set covering
+        {
+            //printf("Constraint %d usable, sum  = %f\n",inst->interSetStart[i]+j, sum);
+            double rhs1 = 0;
+            double rhs2 = 1;
+            char sense1 = 'E';
+            char sense2 = 'G';
+            char* name1 = "down";
+            char* name2 = "up";
+
+            int izero = 0;
+            // generating the array of values, all ones for the variables selected
+            double* values = (double *) calloc(inst->intersectionsLengths[i], sizeof(double));
+            for(int n=0; n<inst->intersectionsLengths[i]; n++)
             {
-                //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
-                // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
-                sum+=rootSolution[inst->intersections[inst->interSetStart[i]+j][k]];
+                values[n]=1;
             }
+            
+            // CPXreadcopyprob(env, lp, inst->input_file, "LP");
+            // CPXchgctype(env, lp, inst->num_cols, varInd, ctype);
+            CPXaddrows(env, lp, 0, 1, inst->intersectionsLengths[i], &rhs1, "E", &izero, inst->intersections[i], values, NULL, &name1);
+            // CPXchgprobtype(env, lp, 0);
+            //CPXwriteprob(env, lp, "downModel.lp", NULL);
 
+            branchingConstraint = CPXgetnumrows(env, lp)-1;
+            CPXcopybase (env, lp, cstat, rstat);
+            if (CPXlpopt(env, lp)) // solve the problem
+                print_error(" Problems on CPXlpopt1");
 
-            if(sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i]) // set covering
-            {
-                //printf("Constraint %d usable, sum  = %f\n",inst->interSetStart[i]+j, sum);
-                double rhs1 = 0;
-                double rhs2 = 1;
-                char sense1 = 'E';
-                char sense2 = 'G';
-                char* name1 = "down";
-                char* name2 = "up";
+            CPXgetx(env, lp, leftSolution, 0, inst->num_cols-1);
+            CPXgetobjval(env, lp, &leftobj);
+            //printf("Left Solution found with objval = %f\n", leftobj);
+            
+            // fprint_array(f, leftSolution, inst->num_cols);
+    
+            delta1 = epsilon > leftobj-obj ? epsilon : leftobj-obj;
+    
+            CPXdelrows(env, lp, branchingConstraint, branchingConstraint);
 
-                int izero = 0;
-                // generating the array of values, all ones for the variables selected
-                double* values = (double *) calloc(inst->interSetLen[i], sizeof(double));
-                for(int n=0; n<inst->interSetLen[i]; n++)
-                {
-                    values[n]=1;
-                }
-                
-                // CPXreadcopyprob(env, lp, inst->input_file, "LP");
-                // CPXchgctype(env, lp, inst->num_cols, varInd, ctype);
-                CPXaddrows(env, lp, 0, 1, inst->interSetLen[i], &rhs1, "E", &izero, inst->intersections[inst->interSetStart[i]+j], values, NULL, &name1);
-                // CPXchgprobtype(env, lp, 0);
-               //CPXwriteprob(env, lp, "downModel.lp", NULL);
+            // CPXreadcopyprob(env, lp, inst->input_file, "LP");
+            // CPXchgctype(env, lp, inst->num_cols, varInd, ctype);
+            CPXaddrows(env, lp, 0, 1, inst->intersectionsLengths[i], &rhs2, "G", &izero, inst->intersections[i], values, NULL, &name2);
+            // CPXchgprobtype(env, lp, 0);
+            //CPXwriteprob(env, lp, "upModel.lp", NULL);
 
-                branchingConstraint = CPXgetnumrows(env, lp)-1;
-                CPXcopybase (env, lp, cstat, rstat);
-                if (CPXlpopt(env, lp)) // solve the problem
-                    print_error(" Problems on CPXlpopt1");
+            branchingConstraint = CPXgetnumrows(env, lp)-1;
+            CPXcopybase (env, lp, cstat, rstat);
+            if (CPXlpopt(env, lp)) // solve the problem
+                print_error(" Problems on CPXlpopt2");
 
-                CPXgetx(env, lp, leftSolution, 0, inst->num_cols-1);
-                CPXgetobjval(env, lp, &leftobj);
-                //printf("Left Solution found with objval = %f\n", leftobj);
-                
-                // fprint_array(f, leftSolution, inst->num_cols);
-        
-                delta1 = epsilon > leftobj-obj ? epsilon : leftobj-obj;
-        
-                CPXdelrows(env, lp, branchingConstraint, branchingConstraint);
+            CPXgetx(env, lp, rightSolution, 0, inst->num_cols-1);
+            CPXgetobjval(env, lp, &rightobj);
+            //printf("Right Solution found with objval = %f\n", rightobj);
+            
+            // fprint_array(f, rightSolution, inst->num_cols);
 
-                // CPXreadcopyprob(env, lp, inst->input_file, "LP");
-                // CPXchgctype(env, lp, inst->num_cols, varInd, ctype);
-                CPXaddrows(env, lp, 0, 1, inst->interSetLen[i], &rhs2, "G", &izero, inst->intersections[inst->interSetStart[i]+j], values, NULL, &name2);
-                // CPXchgprobtype(env, lp, 0);
-               //CPXwriteprob(env, lp, "upModel.lp", NULL);
-
-                branchingConstraint = CPXgetnumrows(env, lp)-1;
-                CPXcopybase (env, lp, cstat, rstat);
-                if (CPXlpopt(env, lp)) // solve the problem
-                    print_error(" Problems on CPXlpopt2");
-
-                CPXgetx(env, lp, rightSolution, 0, inst->num_cols-1);
-                CPXgetobjval(env, lp, &rightobj);
-                //printf("Right Solution found with objval = %f\n", rightobj);
-                
-                // fprint_array(f, rightSolution, inst->num_cols);
-
-                delta2 = epsilon > rightobj-obj ? epsilon : rightobj-obj;
-        
-                CPXdelrows(env, lp, branchingConstraint, branchingConstraint);
-                
-                free(values);
-                scoreDown[inst->interSetStart[i]+j] = delta1;
-                scoreUp[inst->interSetStart[i]+j] = delta2;
-                productScoreConstraints[inst->interSetStart[i]+j] = delta1*delta2;
-            }
-            else
-            {
-                //printf("Constraint %d  not usable\n",inst->interSetStart[i]+j);
-                productScoreConstraints[inst->interSetStart[i]+j] = epsilon*epsilon;
-            }
-            //print_array(productScoreConstraint, inst->interSetStart[i]+j+1);
-            //printf("breakpoint\n");
-            //printf("score: %f\n", productScoreConstraint[inst->interSetStart[i]+j]);
-            if(Max<productScoreConstraints[inst->interSetStart[i]+j])
-            {
-                Max=productScoreConstraints[inst->interSetStart[i]+j];
-                //printf("new max for Constraints: %f\n", Max);
-            }
-            //printf("counter = %d, next progress step = %d, or %f. ProgressPerc = %f, NumIntersection = %d \n", inst->interSetStart[i]+j, (int)(inst->numIntersections*progressPerc), (inst->numIntersections*progressPerc), progressPerc, inst->numIntersections);
-            if(inst->interSetStart[i]+j == (int)(progressPerc * inst->numIntersections))
-            {
-                printf("Completed %.0f%% \n", progressPerc*100);
-                progressPerc+=progressPercStep;
-            }
+            delta2 = epsilon > rightobj-obj ? epsilon : rightobj-obj;
+    
+            CPXdelrows(env, lp, branchingConstraint, branchingConstraint);
+            
+            free(values);
+            scoreDown[i] = delta1;
+            scoreUp[i] = delta2;
+            productScoreConstraints[i] = delta1*delta2;
+        }
+        else
+        {
+            //printf("Constraint %d  not usable\n",inst->interSetStart[i]+j);
+            productScoreConstraints[i] = epsilon*epsilon;
+        }
+        //print_array(productScoreConstraint, inst->interSetStart[i]+j+1);
+        //printf("breakpoint\n");
+        //printf("score: %f\n", productScoreConstraint[inst->interSetStart[i]+j]);
+        if(Max<productScoreConstraints[i])
+        {
+            Max=productScoreConstraints[i];
+            //printf("new max for Constraints: %f\n", Max);
+        }
+        //printf("counter = %d, next progress step = %d, or %f. ProgressPerc = %f, NumIntersection = %d \n", inst->interSetStart[i]+j, (int)(inst->numIntersections*progressPerc), (inst->numIntersections*progressPerc), progressPerc, inst->numIntersections);
+        if(i == (int)(progressPerc * inst->numIntersections))
+        {
+            printf("Completed %.0f%% \n", progressPerc*100);
+            progressPerc+=progressPercStep;
         }
     }
     //fclose(f);
@@ -435,82 +424,77 @@ void computeConstraintsProductScores(CPXENVptr env, CPXLPptr lp, instance* inst,
 void computePrevisionConstraintsScores(instance* inst, double* rootSolution, double* pseudocostDown, double* pseudocostUp, double* constraintScorePrevision, double* estimateScoreDown, double* estimateScoreUp, double epsilon, int policy)
 {
     double Max = 0;
-    for(int i=0; i < inst->numInterSet; i++)
+    for(int i=0; i < inst->numIntersections; i++)
     {
         double pseudoDown;
         double pseudoUp;
         // printf("checking intersection of lenght = %d\n", inst->interSetLen[i]);
         // printf("j from 0 to %d\n", (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]);
-        int j=0;
         // cycle on all the intersection having the same lenght
-        for (; j<( (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]); j++)
+        double sum = 0;
+        // cycle all the variables in the intersection and get the sum
+        pseudoDown=0;
+        if(policy==0)
         {
-            // printf("j=%d\n", j);
-            double sum = 0;
-            // cycle all the variables in the intersection and get the sum
-            pseudoDown=0;
-            if(policy==0)
+            pseudoUp=INT_MAX; 
+        }
+        else
+        {
+            pseudoUp=0;
+        }
+        // printf("***Managing new constraint %d ***\n", inst->interSetStart[i]+j);
+        for(int k = 0; k < inst->intersectionsLengths[i]; k++)
+        {
+            // printf("variable %d has value %f and down pseudocost = %f\n", inst->intersections[inst->interSetStart[i]+j][k], rootSolution[inst->intersections[inst->interSetStart[i]+j][k]], pseudocostDown[inst->intersections[inst->interSetStart[i]+j][k]]);
+            //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
+            // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
+            sum+=rootSolution[inst->intersections[i][k]];
+            pseudoDown += pseudocostDown[inst->intersections[i][k]]*rootSolution[inst->intersections[i][k]];
+            // printf("current downpseudocost = %f\n", pseudoDown);
+            double candidate = pseudocostUp[inst->intersections[i][k]];
+            
+            if(policy == 0)
             {
-                pseudoUp=INT_MAX; 
+                pseudoUp = (pseudoUp > candidate ? candidate : pseudoUp);
             }
-            else
+            else if(policy ==  1)
             {
-                pseudoUp=0;
+                pseudoUp = (pseudoUp < candidate ? candidate : pseudoUp);
             }
-            // printf("***Managing new constraint %d ***\n", inst->interSetStart[i]+j);
-            for(int k = 0; k < inst->interSetLen[i]; k++)
+            else if(policy == 2)
             {
-                // printf("variable %d has value %f and down pseudocost = %f\n", inst->intersections[inst->interSetStart[i]+j][k], rootSolution[inst->intersections[inst->interSetStart[i]+j][k]], pseudocostDown[inst->intersections[inst->interSetStart[i]+j][k]]);
-                //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
-                // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
-                sum+=rootSolution[inst->intersections[inst->interSetStart[i]+j][k]];
-                pseudoDown += pseudocostDown[inst->intersections[inst->interSetStart[i]+j][k]]*rootSolution[inst->intersections[inst->interSetStart[i]+j][k]];
-                // printf("current downpseudocost = %f\n", pseudoDown);
-                double candidate = pseudocostUp[inst->intersections[inst->interSetStart[i]+j][k]];
-                
-                if(policy == 0)
-                {
-                    pseudoUp = (pseudoUp > candidate ? candidate : pseudoUp);
-                }
-                else if(policy ==  1)
-                {
-                    pseudoUp = (pseudoUp < candidate ? candidate : pseudoUp);
-                }
-                else if(policy == 2)
-                {
-                    pseudoUp += candidate;                    
-                }
+                pseudoUp += candidate;                    
             }
-            if(policy==2)
-            {
-                pseudoUp /= inst->interSetLen[i];
-            }
+        }
+        if(policy==2)
+        {
+            pseudoUp /= inst->intersectionsLengths[i];
+        }
 
-            pseudoUp *= (1-sum);
+        pseudoUp *= (1-sum);
 
-            if(sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i]) // set covering
-            {
-                // printf("breakpoint");
-                estimateScoreDown[inst->interSetStart[i]+j] = pseudoDown;
-                estimateScoreUp[inst->interSetStart[i]+j] = pseudoUp;
-                constraintScorePrevision[inst->interSetStart[i]+j] = pseudoDown*pseudoUp;
-            }
-            else
-            {
-                estimateScoreDown[inst->interSetStart[i]+j] = epsilon;
-                estimateScoreUp[inst->interSetStart[i]+j] = epsilon;
-                
-                //printf("Constraint %d  not usable\n",inst->interSetStart[i]+j);
-                constraintScorePrevision[inst->interSetStart[i]+j] = epsilon*epsilon;
-            }
-            //print_array(productScoreConstraint, inst->interSetStart[i]+j+1);
-            //printf("breakpoint\n");
-            //printf("score: %f\n", productScoreConstraint[inst->interSetStart[i]+j]);
-            if(Max<constraintScorePrevision[inst->interSetStart[i]+j])
-            {
-                Max=constraintScorePrevision[inst->interSetStart[i]+j];
-                //printf("new max for Constraints prevision: %f\n", Max);
-            }
+        if(sum>1e-05*inst->intersectionsLengths[i] && sum<1-1e-05*inst->intersectionsLengths[i]) // set covering
+        {
+            // printf("breakpoint");
+            estimateScoreDown[i] = pseudoDown;
+            estimateScoreUp[i] = pseudoUp;
+            constraintScorePrevision[i] = pseudoDown*pseudoUp;
+        }
+        else
+        {
+            estimateScoreDown[i] = epsilon;
+            estimateScoreUp[i] = epsilon;
+            
+            //printf("Constraint %d  not usable\n",inst->interSetStart[i]+j);
+            constraintScorePrevision[i] = epsilon*epsilon;
+        }
+        //print_array(productScoreConstraint, inst->interSetStart[i]+j+1);
+        //printf("breakpoint\n");
+        //printf("score: %f\n", productScoreConstraint[inst->interSetStart[i]+j]);
+        if(Max<constraintScorePrevision[i])
+        {
+            Max=constraintScorePrevision[i];
+            //printf("new max for Constraints prevision: %f\n", Max);
         }
     }
 }

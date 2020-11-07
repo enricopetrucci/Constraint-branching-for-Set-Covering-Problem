@@ -45,10 +45,8 @@ typedef struct {
 
 	// datastructure containing the constraints intersection info
 	int ** intersections;				// array that contains the pointers to arrays containing the variables in each possible intersections between constraints. It contains numIntersection pointers
-	int * interSetLen;					// the array intersections is divided into contiguous sets that contain each intersection of the same lenghts, these length are stored in interSetLen 
-	int * interSetStart;				// contains the starting position of each set.
-	int numInterSet;					// number of non zeros inside interSetLen and interSetStart 
 	int numIntersections;				// number of non zeros inside intersections
+	int * intersectionsLengths;
 
 	double startTime;	
 	int* constraintBranching;
@@ -76,11 +74,13 @@ int scpopt(instance *inst);
 int preprocessinglegacycallback(CPXCENVptr env, void *cbdata, int wherefrom, void *cbhandle, int type, int sos, int nodecnt, int bdcnt, const int *nodebeg,
                          const int *indices, const char *lu, const double *bd, const double *nodeest, int *useraction_p);
 
-void populateIntesectionsOf2(int* izero, int* indexes, int nnz, instance* inst);
+void populateIntersectionsOf2(int* izero, int* indexes, int nnz, instance* inst);
 
-void populateIntesectionsOf3(int* izero, int* indexes, int nnz, instance* inst);
+void populateIntersectionsOf2Sorted(int* izero, int* indexes, int nnz, instance* inst);
 
-void populateIntesectionsOf4(instance* inst);
+void populateIntersectionsOf3(int* izero, int* indexes, int nnz, instance* inst);
+
+void populateIntersectionsOf4(instance* inst);
 
 void performPreprocessing(CPXENVptr env, CPXLPptr lp, instance* inst);
 
@@ -102,7 +102,7 @@ int scoreComparison(instance *inst);
 
 int scpPreprocessing(instance *inst);
 
-void populateIntesectionsOf2NoDup(int* izero, int* indexes, int nnz, instance* inst);
+void populateIntersectionsOf2NoDup(int* izero, int* indexes, int nnz, instance* inst);
 
 void computeConstraintsProductScores(CPXENVptr env, CPXLPptr lp, instance* inst, double* rootSolution, double obj, int* cstat, int* rstat,  double* productScoreConstraints, double* scoreDown, double*scoreUp, double epsilon);
 
@@ -110,11 +110,9 @@ void computeVariablesProductScores(CPXENVptr env, CPXLPptr lp, instance* inst, d
 
 void computePrevisionConstraintsScores(instance* inst, double* rootSolution, double* pseudocostDown, double* pseudocostUp, double* constraintScorePrevision, double* estimateScoreDown, double* estimateScoreUp, double epsilon, int policy);
 
-void addBrachingChilds(CPXCENVptr env, void *cbdata, int wherefrom, double obj, int i, int j, instance* inst);
-
 int genericcallbackfunc(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void *cbhandle);
 
-double findBestBranchingConstraint(int *n, int *m, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
+double findBestBranchingConstraint(int *n, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
 
 double findBestBranchingConstraintContainingVar(int *n, int bestVar, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
 
@@ -125,7 +123,11 @@ void solveUsingGenericCallback(CPXENVptr env, CPXLPptr lp, instance* inst);
 
 void populateVariableConstraintTable(instance *inst);
 
-void addBrachingChildsReduced(CPXCENVptr env, void *cbdata, int wherefrom, double obj, int bestVar, int i, instance* inst);
+void addBranchingChildsReduced(CPXCENVptr env, void *cbdata, int wherefrom, double obj, int bestVar, int i, instance* inst);
+
+double findBestBranchingConstraintSmart(int *n, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
+
+void addBranchingChilds(CPXCENVptr env, void *cbdata, int wherefrom, double obj, int i, instance* inst);
 
 
 

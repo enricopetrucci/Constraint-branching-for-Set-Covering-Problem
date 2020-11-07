@@ -19,6 +19,8 @@ void print_array_int_int(int ** arr, int nnz, int* izero, int* lengths, int len)
 void print_array_char(char *arr, int len);
 void print_array_int_int1(int ** arr, int** lengths, int* counter, int len);
 void fprint_array_int_int1(FILE* f, int ** arr, int** lengths, int* counter, int len);
+void fprint_array_int_int2(FILE* f, int ** arr, int* counter, int len);
+
 
 
 

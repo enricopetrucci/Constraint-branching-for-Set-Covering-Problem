@@ -51,14 +51,14 @@ void solveUsingGenericCallback(CPXENVptr env, CPXLPptr lp, instance* inst)
       values = (double *) realloc(values, nnz*sizeof(double));// realloc should free the unused spaced of the array
       
       double start = second();
-      populateIntesectionsOf2(izero, indexes, nnz, inst);
+      populateIntersectionsOf2Sorted(izero, indexes, nnz, inst);
       double end = second();
       
       printf("Found %d constraint intersections in %f\n", inst->numIntersections, end-start);
 
       // start = second();
-      // populateIntesectionsOf3(izero, indexes, nnz, inst);
-      // //populateIntesectionsOf4(inst);// not working yet
+      // populateIntersectionsOf3(izero, indexes, nnz, inst);
+      // //populateIntersectionsOf4(inst);// not working yet
       // end = second();
       // printf("Found %d constraint intersections in %f\n", inst->numIntersections, end-start);
 
@@ -93,8 +93,6 @@ void solveUsingGenericCallback(CPXENVptr env, CPXLPptr lp, instance* inst)
             free(inst->intersections[i]);
          }
          free(inst->intersections);
-         free(inst->interSetLen);
-         free(inst->interSetStart);
          free(inst->variableFreq);
    }
    int constraintCount=0;
@@ -120,38 +118,33 @@ void findBranchingConstraint0(int* n, int* m, double* x, instance* inst)
    int i = 0;
    int j = 0;
 
-   // cycle on all the sets
-   for(; i < inst->numInterSet; i++)
+   // cycle on all intersection
+   for(; i < inst->numIntersections; i++)
    {
-      // printf("checking intersection of lenght = %d\n", inst->interSetLen[i]);
-      // printf("j from 0 to %d\n", (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]);
-      j=0;
-      // cycle on all the intersection having the same lenght
-      for (; j<( (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]); j++)
+      // printf("j=%d\n", j);
+      double sum = 0;
+      // cycle all the variables in the intersection and get the sum
+      for(int k = 0; k < inst->intersectionsLengths[i]; k++)
       {
-         // printf("j=%d\n", j);
-         double sum = 0;
-         // cycle all the variables in the intersection and get the sum
-         for(int k = 0; k < inst->interSetLen[i]; k++)
-         {
-            //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
-            // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
-            sum+=x[inst->intersections[inst->interSetStart[i]+j][k]];
-         }
-         // printf("Constraint: i=%d, j=%d has sum in the solution = %.20f \n", i, j, sum);
-
-         // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
-         //if(sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i] || sum>1+1e-05*inst->interSetLen[i]) // set partitionoing case
-         if(sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i]) // set covering
-         {
-            //printf("Found constraint not yet used: i=%d, j=%d\n", i, j);
-            foundConstraint=1;
-            break;
-         }
+         //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
+         // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
+         sum+=x[inst->intersections[i][k]];
       }
+      // printf("Constraint: i=%d, j=%d has sum in the solution = %.20f \n", i, j, sum);
+
+      // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
+      //if(sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i] || sum>1+1e-05*inst->interSetLen[i]) // set partitionoing case
+      if(sum>1e-05*inst->intersectionsLengths[i] && sum<1-1e-05*inst->intersectionsLengths[i]) // set covering
+      {
+         //printf("Found constraint not yet used: i=%d, j=%d\n", i, j);
+         foundConstraint=1;
+         break;
+      }
+   
       if(foundConstraint==1)
       {
          break;
+
       }
    }
    if(foundConstraint == 1)
@@ -175,50 +168,40 @@ void findBranchingConstraint1(int* n, int* m, double* x, instance* inst, double 
    int foundConstraint = 0;
 
    int best_i=-1;
-   int best_j=-1;
    int MaxHighInfeas = 0;
 
 
-   // cycle on all the sets
-   for(int i = 0; i < inst->numInterSet; i++)
+   // cycle on the intersections
+   for(int i = 0; i < inst->numIntersections; i++)
    {
-      // printf("checking intersection of lenght = %d\n", inst->interSetLen[i]);
-      // printf("j from 0 to %d\n", (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]);
-      // cycle on all the intersection having the same lenght
-      for (int j = 0; j<( (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]); j++)
+      double sum = 0;
+      int countHighInfeas = 0;
+      // cycle all the variables in the intersection and get the sum
+      for(int k = 0; k < inst->intersectionsLengths[i]; k++)
       {
-         // printf("j=%d\n", j);
-         double sum = 0;
-         int countHighInfeas = 0;
-         // cycle all the variables in the intersection and get the sum
-         for(int k = 0; k < inst->interSetLen[i]; k++)
+         //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
+         // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
+         sum+=x[inst->intersections[i][k]];
+         if(x[inst->intersections[i][k]]>(0.5-delta) && x[inst->intersections[i][k]]<0.5+delta)
          {
-            //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
-            // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
-            sum+=x[inst->intersections[inst->interSetStart[i]+j][k]];
-            if(x[inst->intersections[inst->interSetStart[i]+j][k]]>(0.5-delta) && x[inst->intersections[inst->interSetStart[i]+j][k]]<0.5+delta)
-            {
-               countHighInfeas++;
-            }
+            countHighInfeas++;
          }
-         // printf("Constraint: i=%d, j=%d has sum in the solution = %.20f \n", i, j, sum);
+      }
+      // printf("Constraint: i=%d, j=%d has sum in the solution = %.20f \n", i, j, sum);
 
-         // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
-         if(sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i] && countHighInfeas>MaxHighInfeas) // the constraint is violated
-         {
-            //printf("Found constraint not yet used: i=%d, j=%d, countHighInfeas = %d\n", i, j, countHighInfeas);
-            best_i=i;
-            best_j=j;
-            MaxHighInfeas = countHighInfeas;
-            foundConstraint++;
-         }
+      // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
+      if(sum>1e-05*inst->intersectionsLengths[i] && sum<1-1e-05*inst->intersectionsLengths[i] && countHighInfeas>MaxHighInfeas) // the constraint is violated
+      {
+         //printf("Found constraint not yet used: i=%d, j=%d, countHighInfeas = %d\n", i, j, countHighInfeas);
+         best_i=i;
+         MaxHighInfeas = countHighInfeas;
+         foundConstraint++;
       }
    }
    if(foundConstraint > 0)
    {
       //printf("constraint updated %d times\n", foundConstraint);
       *n = best_i;
-      *m = best_j;
    }
    else
    {
@@ -246,41 +229,28 @@ void findBranchingConstraint2(int* n, int* m, double* x, instance* inst, int* fi
    int foundConstraint = 0;
 
    int best_i=-1;
-   int best_j=-1;
    int MaxFree = 0;
 
 
-   // cycle on all the sets
-   for(int i = 0; i < inst->numInterSet; i++)
+   // cycle on the intersections
+   for(int i = 0; i < inst->numIntersections; i++)
    {
-      // printf("checking intersection of lenght = %d\n", inst->interSetLen[i]);
-      // printf("j from 0 to %d\n", (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]);
-      // cycle on all the intersection having the same lenght
-      for (int j = 0; j<( (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]); j++)
+      double sum = 0;
+      int countFixed = 0;
+      // cycle all the variables in the intersection and get the sum
+      for(int k = 0; k < inst->intersectionsLengths[i]; k++)
       {
-         // printf("j=%d\n", j);
-         double sum = 0;
-         int countFixed = 0;
-         // cycle all the variables in the intersection and get the sum
-         for(int k = 0; k < inst->interSetLen[i]; k++)
-         {
-            //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
-            // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
-            sum+=x[inst->intersections[inst->interSetStart[i]+j][k]];
-            countFixed += fixed[inst->intersections[inst->interSetStart[i]+j][k]];
+         sum+=x[inst->intersections[i][k]];
+         countFixed += fixed[inst->intersections[i][k]];
 
-         }
-         // printf("Constraint: i=%d, j=%d has sum in the solution = %.20f \n", i, j, sum);
+      }
 
-         // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
-         if(sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i] && (inst->interSetLen[i]-countFixed) > MaxFree) // the constraint is violated
-         {
-            //printf("Found constraint not yet used: i=%d, j=%d, countHighInfeas = %d\n", i, j, countHighInfeas);
-            best_i=i;
-            best_j=j;
-            MaxFree = inst->interSetLen[i]-countFixed;
-            foundConstraint++;
-         }
+      // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
+      if(sum>1e-05*inst->intersectionsLengths[i] && sum<1-1e-05*inst->intersectionsLengths[i] && (inst->intersectionsLengths[i]-countFixed) > MaxFree) // the constraint is violated
+      {
+         best_i=i;
+         MaxFree = inst->intersectionsLengths[i]-countFixed;
+         foundConstraint++;
       }
    }
    if(foundConstraint > 0)
@@ -291,18 +261,12 @@ void findBranchingConstraint2(int* n, int* m, double* x, instance* inst, int* fi
          printf("branching on a constraint with %d unfixed variables\n", MaxFree);
 
       }
-      //printf("constraint updated %d times: branching constraint has %d unfixed variables out of the total %d\n", foundConstraint, MaxFree, inst->interSetLen[best_i]);
       *n = best_i;
-      *m = best_j;
    }
    else
    {
-      //printf("performing standard branching\n");
       *n=-1;
-      *m=-1;
    }
-   //printf("breakpoint\n");
-
 }
 
 
@@ -320,51 +284,32 @@ void findBranchingConstraint3(int* n, int* m, double* x, instance* inst)
    double MinIntersectionValue = 1.0;
 
 
-   // cycle on all the sets
-   for(int i = 0; i < inst->numInterSet; i++)
+   // cycle on all the intersections
+   for(int i = 0; i < inst->numIntersections; i++)
    {
-      // printf("checking intersection of lenght = %d\n", inst->interSetLen[i]);
-      // printf("j from 0 to %d\n", (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]);
-      // cycle on all the intersection having the same lenght
-      for (int j = 0; j<( (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]); j++)
+      double sum = 0;
+      // cycle all the variables in the intersection and get the sum
+      for(int k = 0; k < inst->intersectionsLengths[i]; k++)
       {
-         // printf("j=%d\n", j);
-         double sum = 0;
-         // cycle all the variables in the intersection and get the sum
-         for(int k = 0; k < inst->interSetLen[i]; k++)
-         {
-            //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
-            // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
-            sum+=x[inst->intersections[inst->interSetStart[i]+j][k]];
-         }
-         // printf("Constraint: i=%d, j=%d has sum in the solution = %.20f \n", i, j, sum);
-
-         // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
-         // printf("Comparing lowest sum %f with current sum %f\n", MinIntersectionValue, sum);
-         if(sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i] && sum<MinIntersectionValue) // the constraint is violated
-         {
-            //printf("Found constraint not yet used: i=%d, j=%d, countHighInfeas = %d\n", i, j, countHighInfeas);
-            best_i=i;
-            best_j=j;
-            MinIntersectionValue = sum;
-            foundConstraint++;
-         }
+         sum+=x[inst->intersections[i][k]];
+      }
+      // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
+      if(sum>1e-05*inst->intersectionsLengths[i] && sum<1-1e-05*inst->intersectionsLengths[i] && sum<MinIntersectionValue) // the constraint is violated
+      {
+         best_i=i;
+         MinIntersectionValue = sum;
+         foundConstraint++;
       }
    }
    if(foundConstraint > 0)
    {
       if(foundConstraint>1)
-         // printf("constraint updated %d times\n", foundConstraint);
       *n = best_i;
-      *m = best_j;
    }
    else
    {
-      //printf("performing standard branching\n");
       *n=-1;
-      *m=-1;
    }
-   // printf("breakpoint\n");
 }
 
 
@@ -380,45 +325,27 @@ void findBranchingConstraint4(int* n, int* m, double* x, instance* inst, int* fi
    int foundConstraint = 0;
 
    int best_i=-1;
-   int best_j=-1;
    int MaxFree = 0;
    double MinIntersectionValue = 1.0;
 
-
-
-   // cycle on all the sets
-   for(int i = 0; i < inst->numInterSet; i++)
+   // cycle on all the intersections
+   for(int i = 0; i < inst->numIntersections; i++)
    {
-      // printf("checking intersection of lenght = %d\n", inst->interSetLen[i]);
-      // printf("j from 0 to %d\n", (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]);
-      // cycle on all the intersection having the same lenght
-      for (int j = 0; j<( (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]); j++)
+      double sum = 0;
+      int countFixed = 0;
+      // cycle all the variables in the intersection and get the sum
+      for(int k = 0; k < inst->intersectionsLengths[i]; k++)
       {
-         // printf("j=%d\n", j);
-         double sum = 0;
-         int countFixed = 0;
-         // cycle all the variables in the intersection and get the sum
-         for(int k = 0; k < inst->interSetLen[i]; k++)
-         {
-            //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
-            // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
-            sum+=x[inst->intersections[inst->interSetStart[i]+j][k]];
-            countFixed += fixed[inst->intersections[inst->interSetStart[i]+j][k]];
-
-         }
-         // printf("Constraint: i=%d, j=%d has sum in the solution = %.20f \n", i, j, sum);
-
-         // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
-         if(sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i] && ((inst->interSetLen[i]-countFixed > MaxFree) || (inst->interSetLen[i]-countFixed == MaxFree && sum<MinIntersectionValue))) // the constraint is violated
-         {
-            //printf("Found constraint not yet used: i=%d, j=%d, countHighInfeas = %d\n", i, j, countHighInfeas);
-            best_i=i;
-            best_j=j;
-            MaxFree = inst->interSetLen[i]-countFixed;
-            MinIntersectionValue = sum;
-
-            foundConstraint++;
-         }
+         sum+=x[inst->intersections[i][k]];
+         countFixed += fixed[inst->intersections[i][k]];
+      }
+      // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
+      if(sum>1e-05*inst->intersectionsLengths[i] && sum<1-1e-05*inst->intersectionsLengths[i] && ((inst->intersectionsLengths[i]-countFixed > MaxFree) || (inst->intersectionsLengths[i]-countFixed == MaxFree && sum<MinIntersectionValue))) // the constraint is violated
+      {
+         best_i=i;
+         MaxFree = inst->intersectionsLengths[i]-countFixed;
+         MinIntersectionValue = sum;
+         foundConstraint++;
       }
    }
    if(foundConstraint > 0)
@@ -427,21 +354,14 @@ void findBranchingConstraint4(int* n, int* m, double* x, instance* inst, int* fi
       {
          inst->lowestNumVariables = MaxFree;
          printf("branching on a constraint with %d unfixed variables\n", MaxFree);
-
       }
-      //printf("constraint updated %d times: branching constraint has %d unfixed variables out of the total %d\n", foundConstraint, MaxFree, inst->interSetLen[best_i]);
       *n = best_i;
-      *m = best_j;
    }
    else
    {
-      //printf("performing standard branching\n");
       *n=-1;
-      *m=-1;
    }
-   //printf("breakpoint\n");
 }
-
 
 
 /**
@@ -453,10 +373,7 @@ void findBranchingConstraint4(int* n, int* m, double* x, instance* inst, int* fi
 void findBranchingConstraint5(int* n, int* m, double* x, instance* inst, int* fixed)
 {
    int foundConstraint = 0;
-
    int best_i=-1;
-   int best_j=-1;
-
    int mostFrequentUnfixedVar = 0;
 
    for(int i=0; i<inst->num_cols; i++)
@@ -468,55 +385,34 @@ void findBranchingConstraint5(int* n, int* m, double* x, instance* inst, int* fi
       }
    }
 
-
-   // cycle on all the sets
-   for(int i = 0; i < inst->numInterSet; i++)
+   for(int i = 0; i < inst->numIntersections; i++)
    {
-      // printf("checking intersection of lenght = %d\n", inst->interSetLen[i]);
-      // printf("j from 0 to %d\n", (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]);
-      // cycle on all the intersection having the same lenght
-      for (int j = 0; j<( (i < inst->numInterSet-1) ? (inst->interSetStart[i+1] - inst->interSetStart[i]) : inst->numIntersections - inst->interSetStart[i]); j++)
+      double sum = 0;
+      int containsFreqVar = 0;
+      // cycle all the variables in the intersection and get the sum
+      for(int k = 0; k < inst->intersectionsLengths[i]; k++)
       {
-         // printf("j=%d\n", j);
-         double sum = 0;
-         int containsFreqVar = 0;
-         // cycle all the variables in the intersection and get the sum
-         for(int k = 0; k < inst->interSetLen[i]; k++)
+         sum+=x[inst->intersections[i][k]];
+         if(inst->intersections[i][k]==mostFrequentUnfixedVar)
          {
-            //printf("k=%d index = %d\n", k, inst->intersections[inst->interSetStart[i]+j][k]);
-            // printf("number %d, variable %d has coefficient %.20f\n",k, inst->intersections[inst->interSetStart[i]+j][k],x[inst->intersections[inst->interSetStart[i]+j][k]]);
-            sum+=x[inst->intersections[inst->interSetStart[i]+j][k]];
-            if(inst->intersections[inst->interSetStart[i]+j][k]==mostFrequentUnfixedVar)
-            {
-               containsFreqVar = 1;
-            }
+            containsFreqVar = 1;
          }
-         // printf("Constraint: i=%d, j=%d has sum in the solution = %.20f \n", i, j, sum);
-
-         // if the sum of the variables in the intersection is strictly (considering tolerance) in between 0 and 1 the constraint can be added.
-         if(containsFreqVar==1 && sum>1e-05*inst->interSetLen[i] && sum<1-1e-05*inst->interSetLen[i]) // the constraint is violated
-         {
-            //printf("Found constraint not yet used: i=%d, j=%d, countHighInfeas = %d\n", i, j, countHighInfeas);
-            best_i=i;
-            best_j=j;
-            foundConstraint++;
-            break;
-         }
+      }
+      if(containsFreqVar==1 && sum>1e-05*inst->intersectionsLengths[i] && sum<1-1e-05*inst->intersectionsLengths[i]) // the constraint is violated
+      {
+         best_i=i;
+         foundConstraint++;
+         break;
       }
    }
    if(foundConstraint > 0)
    {
-      //printf("constraint updated %d times: branching constraint has %d unfixed variables out of the total %d\n", foundConstraint, MaxFree, inst->interSetLen[best_i]);
       *n = best_i;
-      *m = best_j;
    }
    else
    {
-      //printf("performing standard branching\n");
       *n=-1;
-      *m=-1;
    }
-   //printf("breakpoint\n");
 }
 
 
@@ -681,8 +577,8 @@ int genericcallbackfunc(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void *
                   char sense2 = 'G';
                   int izero = 0;
                   // generating the array of values, all ones for the variables selected
-                  double* values = (double *) calloc(inst->interSetLen[i], sizeof(double));
-                  for(int n=0; n<inst->interSetLen[i]; n++)
+                  double* values = (double *) calloc(inst->intersectionsLengths[i], sizeof(double));
+                  for(int n=0; n<inst->intersectionsLengths[i]; n++)
                   {
                      values[n]=1;
                   }
@@ -692,18 +588,18 @@ int genericcallbackfunc(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void *
                   // print_array_int(inst->intersections[inst->interSetStart[i]+j], inst->interSetLen[i]);
                   // print_array(values, inst->interSetLen[i]);
                   // printf("adding constraints with %d variables, rhs1=%f, rhs2=%f, sense1=%c, sense2=%c, izero=%d\n", inst->interSetLen[i], rhs1, rhs2, sense1, sense2, izero);
-                  if(inst->interSetLen[i]<inst->shortestConstraint)
+                  if(inst->intersectionsLengths[i]<inst->shortestConstraint)
                   {
-                     inst->shortestConstraint = inst->interSetLen[i];
-                     printf("branching on a constraint with %d variables\n", inst->interSetLen[i]);
+                     inst->shortestConstraint = inst->intersectionsLengths[i];
+                     printf("branching on a constraint with %d variables\n", inst->intersectionsLengths[i]);
 
                   }
-                  if(CPXcallbackmakebranch(context, 0, NULL, NULL, NULL, 1, inst->interSetLen[i], &rhs1, "E", &izero, inst->intersections[inst->interSetStart[i]+j], values, obj, &child1)!=0)
+                  if(CPXcallbackmakebranch(context, 0, NULL, NULL, NULL, 1, inst->intersectionsLengths[i], &rhs1, "E", &izero, inst->intersections[i], values, obj, &child1)!=0)
                   {
                      print_error("First branch was not succesful\n");
                   }
                   //if(CPXcallbackmakebranch(context, 0, NULL, NULL, NULL, 1, inst->interSetLen[i], &rhs2, "E", &izero, inst->intersections[inst->interSetStart[i]+j], values, obj, &child2)==0)
-                  if(CPXcallbackmakebranch(context, 0, NULL, NULL, NULL, 1, inst->interSetLen[i], &rhs2, "G", &izero, inst->intersections[inst->interSetStart[i]+j], values, obj, &child2)!=0)
+                  if(CPXcallbackmakebranch(context, 0, NULL, NULL, NULL, 1, inst->intersectionsLengths[i], &rhs2, "G", &izero, inst->intersections[i], values, obj, &child2)!=0)
                   {
                      print_error("Second branch was not succesful\n");
                   }

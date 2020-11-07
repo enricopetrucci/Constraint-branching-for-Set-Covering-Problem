@@ -25,6 +25,8 @@ set(SOURCES "include/chrono.h"
             "src/utilities.c"
             "src/preprocessing.c"
             "src/genericCallbacks.c"
+            "src/constraintIntersections.c"
+            
             
             )
 
@@ -37,6 +39,8 @@ add_executable( "main.o"
                 "src/utilities.c"
                 "src/preprocessing.c"
                 "src/genericCallbacks.c"
+                "src/constraintIntersections.c"
+            
               )
 
 # link CPLEX libraries
