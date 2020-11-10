@@ -65,78 +65,33 @@ typedef struct {
     int* constraintCounter; 
     int ** varConstrDim;
  
-
+	double executionTime;
+	double bestInt;
+	double bestVal;
+	double MIPgap;
+	int exploredNodes;
+	int remainingNodes;
+	int totalConstraintBranching;
+	int totalVariableBranching;
+	int storeResults;
+	int delta;
 } instance;
 
 // functions to compute the solutions to the TSP using the CPLEX library
 int scpopt(instance *inst);
 
-int preprocessinglegacycallback(CPXCENVptr env, void *cbdata, int wherefrom, void *cbhandle, int type, int sos, int nodecnt, int bdcnt, const int *nodebeg,
-                         const int *indices, const char *lu, const double *bd, const double *nodeest, int *useraction_p);
-
-void populateIntersectionsOf2(int* izero, int* indexes, int nnz, instance* inst);
-
-void populateIntersectionsOf2Sorted(int* izero, int* indexes, int nnz, instance* inst);
-
-void populateIntersectionsOf3(int* izero, int* indexes, int nnz, instance* inst);
-
-void populateIntersectionsOf4(instance* inst);
-
-void performPreprocessing(CPXENVptr env, CPXLPptr lp, instance* inst);
-
-void findBranchingConstraint0(int* n, int* m, double* x, instance* inst);
-
-void findBranchingConstraint1(int* n, int* m, double* x, instance* inst, double delta);
-
-void findBranchingConstraint2(int* n, int* m, double* x, instance* inst, int* fixed);
-
-void findBranchingConstraint3(int* n, int* m, double* x, instance* inst);
-
-void findBranchingConstraint4(int* n, int* m, double* x, instance* inst, int* fixed);
-
-void findBranchingConstraint5(int* n, int* m, double* x, instance* inst, int* fixed);
-
-void computeVariableFrequency(int* izero, int* indexes, int nnz, instance* inst);
-
-int scoreComparison(instance *inst);
-
-int scpPreprocessing(instance *inst);
-
-void populateIntersectionsOf2NoDup(int* izero, int* indexes, int nnz, instance* inst);
-
-void computeConstraintsProductScores(CPXENVptr env, CPXLPptr lp, instance* inst, double* rootSolution, double obj, int* cstat, int* rstat,  double* productScoreConstraints, double* scoreDown, double*scoreUp, double epsilon);
-
-void computeVariablesProductScores(CPXENVptr env, CPXLPptr lp, instance* inst, double* rootSolution, double obj, int* cstat, int* rstat, double* productScoreVariables, double* pseudocostDown, double* pseudocostUp, double epsilon);
-
-void computePrevisionConstraintsScores(instance* inst, double* rootSolution, double* pseudocostDown, double* pseudocostUp, double* constraintScorePrevision, double* estimateScoreDown, double* estimateScoreUp, double epsilon, int policy);
-
-int genericcallbackfunc(CPXCALLBACKCONTEXTptr context, CPXLONG contextid, void *cbhandle);
-
 double findBestBranchingConstraint(int *n, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
 
 double findBestBranchingConstraintContainingVar(int *n, int bestVar, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
 
+double findBestBranchingConstraintSmart(int *n, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
 
 void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance* inst);
 
-void solveUsingGenericCallback(CPXENVptr env, CPXLPptr lp, instance* inst);
-
 void populateVariableConstraintTable(instance *inst);
-
-void addBranchingChildsReduced(CPXCENVptr env, void *cbdata, int wherefrom, double obj, int bestVar, int i, instance* inst);
-
-double findBestBranchingConstraintSmart(int *n, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
 
 void addBranchingChilds(CPXCENVptr env, void *cbdata, int wherefrom, double obj, int i, instance* inst);
 
-
-
-
-
-
-
-
-
-
+void saveComputationResults(instance *inst);
 
 #endif   /* scp_H_ */

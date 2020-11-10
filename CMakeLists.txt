@@ -17,7 +17,12 @@ set(CMAKE_BUILD_TYPE Debug)
 # can manually add the sources using the set command as follows:
 set(SOURCES "include/chrono.h"
             "include/scp.h"
+            "include/constraintIntersections.h"
+            "include/genericCallbacks.h"
+            "include/preprocessing.h"
+            "include/scoreComparison.h"
             "include/utilities.h"
+            
             "src/scoreComparison.c"
             "src/main.c"
             "src/chrono.c"

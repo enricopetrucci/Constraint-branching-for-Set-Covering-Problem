@@ -6,6 +6,8 @@
 */
 
 #include "scp.h"
+#include "genericCallbacks.h"
+#include "constraintIntersection.h"
 
 /** 
  * Callback function only useful to save the preprocessed redced problem as a new one.
@@ -59,9 +61,9 @@ int legacyBranchingCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *c
             CPXgetcallbacknodex(env, cbdata, wherefrom, x, 0, inst->num_cols - 1);
             double Max = 0;
             double sec1 = second();
-            int findBestMethod = 2; // 0 naive 1 smart 2 limited
+            // 0 naive 1 smart 2 limited
 
-            switch (findBestMethod)
+            switch (inst->constraintBranchVer)
             {
                 case 0:
                 {
@@ -85,7 +87,7 @@ int legacyBranchingCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *c
             double varCostDown = (0.001 > pseudocostDown[indices[0]] * x[indices[0]] ? 0.001 : pseudocostDown[indices[0]] * x[indices[0]]);
             double varCostUp = (0.001 > pseudocostUp[indices[0]] * (1 - x[indices[0]]) ? 0.001 : pseudocostUp[indices[0]] * (1 - x[indices[0]]));
 
-            if (i != -1 && Max > 2 * (varCostDown * varCostUp))
+            if (i != -1 && Max > inst->delta * (varCostDown * varCostUp))
             {
                 addBranchingChilds(env, cbdata, wherefrom, obj, i, inst);
                 *useraction_p = CPX_CALLBACK_SET;
@@ -155,8 +157,6 @@ int scpopt(instance *inst)
 
     inst->num_cols = CPXgetnumcols(env, lp);
     inst->num_rows = CPXgetnumrows(env, lp);
-
-    char str[80];
 
     if (inst->callback == 0)
     {
@@ -411,8 +411,8 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
     else
         print_error("Problems in getting the solution");
 
-    int constraintCount = 0;
-    int defaultCount = 0;
+    inst->totalConstraintBranching = 0;
+    inst->totalVariableBranching = 0;
     double callbackTime = 0;
     double findingConstraintTime = 0;
 
@@ -423,19 +423,29 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
             free(inst->intersections[i]);
         }
         free(inst->intersections);
-        free(inst->variableFreq);
+        //free(inst->variableFreq);
     }
 
     for (int i = 0; i < inst->threads; i++)
     {
-        constraintCount += (inst->constraintBranching[i]);
-        defaultCount += (inst->defaultBranching[i]);
+        inst->totalConstraintBranching += (inst->constraintBranching[i]);
+        inst->totalVariableBranching += (inst->defaultBranching[i]);
         callbackTime += (inst->timeInCallback[i]);
         findingConstraintTime += (inst->timeFindingConstraint[i]);
     }
+    if(inst->storeResults)
+    {
+        inst->executionTime = (second() - inst->startTime);
+        
+        CPXgetcutoff( env, lp, &(inst->bestInt));
+        inst->bestVal = obj;
+        CPXgetmiprelgap (env, lp, &(inst->MIPgap));
+        inst->exploredNodes = CPXgetnodecnt (env, lp);
+        inst->remainingNodes = CPXgetnodeleftcnt (env, lp);
 
-    saveComputationResults(inst);
-    printf("%d constraint branching\n%d default branching\n", constraintCount, defaultCount);
+        saveComputationResults(inst);
+    }
+    printf("%d constraint branching\n%d default branching\n", inst->totalConstraintBranching, inst->totalVariableBranching);
 
     printf("Total time in callback = %f which is %f%% of the total\n", callbackTime, 100 * callbackTime / (second() - inst->startTime));
     printf("Time spent in callback choosing the best constraint: %f\n", findingConstraintTime);
@@ -556,11 +566,36 @@ void addBranchingChilds(CPXCENVptr env, void *cbdata, int wherefrom, double obj,
  * mip gap
  * nodes explored
  * nodes remaining
- * 
+ * seed
  */
 
 void saveComputationResults(instance *inst)
 {
-;
+    char fileName[1000];
+    int length = strlen(inst->input_file);
+    int start = 21;
+    int end = length-3;
+    printf("Real length = %d\n", end-start+2);
+    char input_file[100];
+    int i=0;
+    for(; i<end-start; i++)
+    {
+        input_file[i]=inst->input_file[i+start];
+    }
+    input_file[i]=0;
+    sprintf(fileName, "../results/%d_%d_%d_%d/%s_%d_%d_%d_%d_%d_%.0f.csv", inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, input_file, inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->threads, inst->timelimit);
+    printf("Saving in file %s\n", fileName);
+    FILE *f;
+    if( access( fileName, F_OK ) != -1 ) // file exists
+    {
+        f = fopen(fileName, "a"); 
+    }
+    else // file doesn't exist
+    {
+        f = fopen(fileName, "w");
+        fprintf(f, "Instance,Time,Best Int.,Best Val.,MIP Gap,Nodes,Nodes Left,Constraint Branching,Varaible Branching,Seed,Threads, Callback, Branching, constraintBranchVer\n"); 
+    }
+    fprintf(f, "%s,%f,%f,%f,%f,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",inst->input_file, inst->executionTime, inst->bestInt, inst->bestVal, inst->MIPgap, inst->exploredNodes, inst->remainingNodes, inst->totalConstraintBranching, inst->totalVariableBranching, inst->seed, inst->threads, inst->callback, inst->branching, inst->constraintBranchVer);
+     
 }
     

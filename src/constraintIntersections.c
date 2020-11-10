@@ -6,6 +6,7 @@
 */
 
 #include "scp.h"
+#include "constraintIntersection.h"
 
 /**
  * Compute all possible intersections between the

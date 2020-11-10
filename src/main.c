@@ -9,6 +9,10 @@
 
 
 #include "scp.h"
+#include "preprocessing.h"
+#include "scoreComparison.h"
+
+
 
 void parse_command_line(int argc, char** argv, instance* inst);
 
@@ -61,7 +65,7 @@ void parse_command_line(int argc, char** argv, instance* inst)
 {
 	// set the defaults: if they need to be changed it's done when parsing the arguments  
 	strcpy(inst->input_file, "NULL");
-	inst->timelimit = 100000;
+	inst->timelimit = 3600;
 	inst->seed = 0;
 	inst->callback = 1;
 	inst->extractPreprocessing = 0;
@@ -69,6 +73,8 @@ void parse_command_line(int argc, char** argv, instance* inst)
 	inst->constraintBranchVer = 0;
 	inst->threads = 0;
 	inst->scoreComparison = 0;
+	inst->storeResults = 0;
+	inst->delta = 0;
 	// parse the parameters
 	for (int i = 1; i < argc; i++)
 	{
@@ -83,6 +89,15 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		if (strcmp(argv[i], "-constraintBranchVer") == 0) { inst->constraintBranchVer = atoi(argv[++i]); continue; } 	// determine constraint branching behavior
 		if (strcmp(argv[i], "-threads") == 0) { inst->threads = atoi(argv[++i]); continue; } 							// determine the number of threads
 		if (strcmp(argv[i], "-scoreComparison") == 0) { inst->scoreComparison = atoi(argv[++i]); continue; } 			// only perform score comparison 
+		if (strcmp(argv[i], "-storeResults") == 0) { inst->storeResults = atoi(argv[++i]); continue; } 					// store the results of the computation 
+		if (strcmp(argv[i], "-delta") == 0) { inst->delta = atoi(argv[++i]); continue; } 								// store the results of the computation 
+		
 
+
+	}
+	if(inst->branching==0)
+	{
+		inst->constraintBranchVer = 0;
+		inst->delta = 0;
 	}
 }

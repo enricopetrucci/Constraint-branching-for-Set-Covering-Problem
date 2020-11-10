@@ -1,4 +1,7 @@
 #include "scp.h"
+#include "constraintIntersection.h"
+#include "scoreComparison.h"
+
 
 int scoreComparison(instance *inst)
 {
