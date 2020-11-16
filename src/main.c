@@ -74,15 +74,15 @@ void parse_command_line(int argc, char** argv, instance* inst)
 	inst->threads = 0;
 	inst->scoreComparison = 0;
 	inst->storeResults = 0;
-	inst->delta = 0;
+	inst->delta = 2;
 	// parse the parameters
 	for (int i = 1; i < argc; i++)
 	{
-		if (strcmp(argv[i], "-file") == 0) { strcpy(inst->input_file, argv[++i]); continue; } 							// input file
-		if (strcmp(argv[i], "-input") == 0) { strcpy(inst->input_file, argv[++i]); continue; } 							// input file
-		if (strcmp(argv[i], "-f") == 0) { strcpy(inst->input_file, argv[++i]); continue; } 								// input file
-		if (strcmp(argv[i], "-time_limit") == 0) { inst->timelimit = atof(argv[++i]); continue; }						// total time limit
-		if (strcmp(argv[i], "-seed") == 0) { inst->seed = atoi(argv[++i]); continue; } 									// random seed for cplex computation
+		if (strcmp(argv[i], "-file") == 0) { strcpy(inst->input_file, argv[++i]); printf("File: %s\n", inst->input_file); continue; } 							// input file
+		if (strcmp(argv[i], "-input") == 0) { strcpy(inst->input_file, argv[++i]); printf("File: %s\n", inst->input_file); continue; } 							// input file
+		if (strcmp(argv[i], "-f") == 0) { strcpy(inst->input_file, argv[++i]); printf("File: %s\n", inst->input_file); continue; } 								// input file
+		if (strcmp(argv[i], "-time_limit") == 0) { inst->timelimit = atof(argv[++i]); printf("Timelimit: %f\n", inst->timelimit); continue; }						// total time limit
+		if (strcmp(argv[i], "-seed") == 0) { inst->seed = atoi(argv[++i]); printf("seed: %d\n", inst->seed); continue; } 									// random seed for cplex computation
  		if (strcmp(argv[i], "-callback") == 0) { inst->callback = atoi(argv[++i]); continue; }                      	// determine callback behavior
 		if (strcmp(argv[i], "-extractPreprocessing") == 0) { inst->extractPreprocessing = atoi(argv[++i]); continue; } 	// reduce the computation to the preprocessing phase and extract the core of the problem
 		if (strcmp(argv[i], "-branching") == 0) { inst->branching = atoi(argv[++i]); continue; } 						// determine branching behavior
@@ -95,9 +95,30 @@ void parse_command_line(int argc, char** argv, instance* inst)
 
 
 	}
+	if(inst->callback=1)
+	{
+		printf("Using legacy callbacks\n");
+	}
 	if(inst->branching==0)
 	{
+		printf("Using standard branching\n");
 		inst->constraintBranchVer = 0;
 		inst->delta = 0;
 	}
+	else
+	{
+		printf("Using branching constraint: ");
+		switch(inst->constraintBranchVer)
+		{
+			case 0:
+				printf("all constraint\n");
+				break;
+			case 1:
+				printf("all constraint considering only fractional variables\n");
+				break;
+			case 2:
+				printf("only constraints that contains best variable\n");
+		}
+	}
+
 }

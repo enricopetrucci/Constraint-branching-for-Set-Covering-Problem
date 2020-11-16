@@ -55,15 +55,20 @@ void populateIntersectionsOf2(int *izero, int *indexes, int nnz, instance *inst)
                     m++;
                     j++;
                 }
-                // case 2 and 3: mismatch, increase the index of corresponding to the lowest variable
-                if (indexes[izero[i] + j] < indexes[izero[n] + m])
+                else
                 {
-                    j++;
-                }
-
-                if (indexes[izero[n] + m] < indexes[izero[i] + j])
-                {
-                    m++;
+                    // case 2 and 3: mismatch, increase the index of corresponding to the lowest variable
+                    if (indexes[izero[i] + j] < indexes[izero[n] + m])
+                    {
+                        j++;
+                    }
+                    else
+                    {
+                        if (indexes[izero[n] + m] < indexes[izero[i] + j])
+                        {
+                            m++;
+                        }
+                    }
                 }
             }
             // if the intersecion is non empty resize array

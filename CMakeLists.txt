@@ -12,7 +12,12 @@ FIND_PACKAGE(CPLEX REQUIRED)
 include_directories(include;${CPLEX_INCLUDE_DIRS})
 
 # add debug information
+# debug
 set(CMAKE_BUILD_TYPE Debug)
+# 
+# release
+# set(CMAKE_BUILD_TYPE Release)
+
 
 # can manually add the sources using the set command as follows:
 set(SOURCES "include/chrono.h"

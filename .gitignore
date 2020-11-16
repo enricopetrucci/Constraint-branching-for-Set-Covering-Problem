@@ -2,3 +2,7 @@
 build/
 Dataset/
 *.csv
+*.txt
+Final_Results
+release
+slurmjobs

@@ -54,7 +54,9 @@ typedef struct {
 
 	double* timeInCallback;
 	double* timeFindingConstraint;
-
+	double initTime;
+	double firstLoop;
+	double secondLoop;
 
 	double* solution;					// array containing the final solution
 	int shortestConstraint;
@@ -84,11 +86,9 @@ double findBestBranchingConstraint(int *n, double* x, double* pseudocostDown, do
 
 double findBestBranchingConstraintContainingVar(int *n, int bestVar, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
 
-double findBestBranchingConstraintSmart(int *n, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
+double findBestBranchingConstraintFracVar(int *n, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
 
 void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance* inst);
-
-void populateVariableConstraintTable(instance *inst);
 
 void addBranchingChilds(CPXCENVptr env, void *cbdata, int wherefrom, double obj, int i, instance* inst);
 

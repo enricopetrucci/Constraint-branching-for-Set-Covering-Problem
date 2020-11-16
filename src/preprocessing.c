@@ -1,5 +1,5 @@
 #include "scp.h"
-
+#include "preprocessing.h"
 
 /**
  * Preprocess the scp using the CPLEX library.
