@@ -77,6 +77,22 @@ typedef struct {
 	int totalVariableBranching;
 	int storeResults;
 	int delta;
+
+	int* interSetLen;
+	int* interSetStart;
+	int numInterSet;
+
+	// arrays to be used inside the callbacks
+	double **xs;
+	double **varPseudocostsUp;
+	double **varPseudocostsDown;
+	double **estimateScoreDown;
+    double **estimateScoreUp;
+    double **isInit;
+    double **sum;
+
+	int lookAhead;
+    
 } instance;
 
 // functions to compute the solutions to the TSP using the CPLEX library
@@ -87,6 +103,8 @@ double findBestBranchingConstraint(int *n, double* x, double* pseudocostDown, do
 double findBestBranchingConstraintContainingVar(int *n, int bestVar, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
 
 double findBestBranchingConstraintFracVar(int *n, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
+
+double findBestBranchingConstraintFracVarNewVersion(int *n, double *x, double *pseudocostDown, double *pseudocostUp, instance *inst, int threadNum);
 
 void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance* inst);
 

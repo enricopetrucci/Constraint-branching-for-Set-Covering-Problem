@@ -75,6 +75,7 @@ void parse_command_line(int argc, char** argv, instance* inst)
 	inst->scoreComparison = 0;
 	inst->storeResults = 0;
 	inst->delta = 2;
+	inst->lookAhead = 100;
 	// parse the parameters
 	for (int i = 1; i < argc; i++)
 	{
@@ -90,7 +91,8 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		if (strcmp(argv[i], "-threads") == 0) { inst->threads = atoi(argv[++i]); continue; } 							// determine the number of threads
 		if (strcmp(argv[i], "-scoreComparison") == 0) { inst->scoreComparison = atoi(argv[++i]); continue; } 			// only perform score comparison 
 		if (strcmp(argv[i], "-storeResults") == 0) { inst->storeResults = atoi(argv[++i]); continue; } 					// store the results of the computation 
-		if (strcmp(argv[i], "-delta") == 0) { inst->delta = atoi(argv[++i]); continue; } 								// store the results of the computation 
+		if (strcmp(argv[i], "-delta") == 0) { inst->delta = atoi(argv[++i]); continue; } 								// delta 
+		if (strcmp(argv[i], "-lookAhead") == 0) { inst->lookAhead = atoi(argv[++i]); continue; } 					    // number of non improving constraints to be evaluated before stopping 
 		
 
 
@@ -104,6 +106,7 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		printf("Using standard branching\n");
 		inst->constraintBranchVer = 0;
 		inst->delta = 0;
+		inst->lookAhead = 0;
 	}
 	else
 	{
@@ -111,13 +114,17 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		switch(inst->constraintBranchVer)
 		{
 			case 0:
-				printf("all constraint\n");
+				printf("Using lookH\n");
 				break;
 			case 1:
 				printf("all constraint considering only fractional variables\n");
 				break;
 			case 2:
 				printf("only constraints that contains best variable\n");
+		}
+		if(inst->constraintBranchVer!=0)
+		{
+			inst->lookAhead=0;
 		}
 	}
 

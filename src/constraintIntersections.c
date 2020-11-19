@@ -100,6 +100,219 @@ void populateIntersectionsOf2(int *izero, int *indexes, int nnz, instance *inst)
     // fclose(f);
 }
 
+// function to sort the subsection a[i .. j] of the array a[]
+void merge_sort(int i, int j, int** aux, instance* inst) {
+    int** a = inst->intersections;
+    if (j <= i) {
+        return;     // the subsection is empty or a single element
+    }
+    int mid = (i + j) / 2;
+
+    // left sub-array is a[i .. mid]
+    // right sub-array is a[mid + 1 .. j]
+    merge_sort(i, mid, aux, inst);     // sort the left sub-array recursively
+    merge_sort(mid + 1, j, aux, inst);     // sort the right sub-array recursively
+    
+    int pointer_left = i;       // pointer_left points to the beginning of the left sub-array
+    int pointer_right = mid + 1;        // pointer_right points to the beginning of the right sub-array
+    int k;      // k is the loop counter
+
+    // we loop from i to j to fill each element of the final merged array
+    for (k = i; k <= j; k++) {
+        if (pointer_left == mid + 1) {      // left pointer has reached the limit
+            aux[k] = a[pointer_right];
+            pointer_right++;
+        } else if (pointer_right == j + 1) {        // right pointer has reached the limit
+            aux[k] = a[pointer_left];
+            pointer_left++;
+        } else if (compareIntersections(inst, pointer_right, pointer_left)) {        // pointer left points to smaller element
+            aux[k] = a[pointer_left];
+            pointer_left++;
+        } else {        // pointer right points to smaller element
+            aux[k] = a[pointer_right];
+            pointer_right++;
+        }
+    }
+
+    for (k = i; k <= j; k++) {      // copy the elements from aux[] to a[]
+        a[k] = aux[k];
+    }
+    // FILE *f;
+    // f = fopen("sortedConstraints.txt", "w");
+    // fprint_array_int_int2(f, inst->intersections, inst->intersectionsLengths, inst->numIntersections);
+    // fprint_array_int(f, inst->intersectionsLengths, inst->numIntersections);
+    // fclose(f);
+    // printf("breakpoint\n");
+}
+
+
+
+// function to sort the subsection a[i .. j] of the array a[]
+void merge_sort1(int i, int j, int** aux, int* aux1, instance* inst) {
+    int** a = inst->intersections;
+    int* a1 = inst->intersectionsLengths;
+
+    if (j <= i) {
+        return;     // the subsection is empty or a single element
+    }
+    int mid = (i + j) / 2;
+
+    // left sub-array is a[i .. mid]
+    // right sub-array is a[mid + 1 .. j]
+    merge_sort1(i, mid, aux, aux1,  inst);     // sort the left sub-array recursively
+    merge_sort1(mid + 1, j, aux, aux1, inst);     // sort the right sub-array recursively
+    
+    int pointer_left = i;       // pointer_left points to the beginning of the left sub-array
+    int pointer_right = mid + 1;        // pointer_right points to the beginning of the right sub-array
+    int k;      // k is the loop counter
+
+    // we loop from i to j to fill each element of the final merged array
+    for (k = i; k <= j; k++) {
+        if (pointer_left == mid + 1) {      // left pointer has reached the limit
+            aux[k] = a[pointer_right];
+            aux1[k]=a1[pointer_right];
+            pointer_right++;
+        } else if (pointer_right == j + 1) {        // right pointer has reached the limit
+            aux[k] = a[pointer_left];
+            aux1[k] = a1[pointer_left];
+            pointer_left++;
+        } else if (compareIntersections(inst, pointer_right, pointer_left)) {        // pointer left points to smaller element
+            aux[k] = a[pointer_left];
+            aux1[k] = a1[pointer_left];
+            pointer_left++;
+        } else {        // pointer right points to smaller element
+            aux[k] = a[pointer_right];
+            aux1[k] = a1[pointer_right];
+            pointer_right++;
+        }
+    }
+
+    for (k = i; k <= j; k++) {      // copy the elements from aux[] to a[]
+        a[k] = aux[k];
+        a1[k] = aux1[k];
+    }
+    // FILE *f;
+    // f = fopen("sortedConstraints.txt", "w");
+    // fprint_array_int_int2(f, inst->intersections, inst->intersectionsLengths, inst->numIntersections);
+    // fprint_array_int(f, inst->intersectionsLengths, inst->numIntersections);
+    // fclose(f);
+    // printf("breakpoint\n");
+}
+
+
+void sortIntersections(instance *inst)
+{
+    int i, j; 
+    int min_idx;
+
+    for (i = 0; i < inst->numIntersections - 1; i++)
+    { 
+        min_idx = i;
+        for(j = i; j < inst->numIntersections; j++)
+        {
+            if(compareIntersections(inst, min_idx, j))
+            {
+                min_idx = j;
+            }
+        }
+        swap(inst, i, min_idx);
+    }
+}
+
+
+void swap(instance *inst, int i, int j)
+{
+    int* tempInter = inst->intersections[i];
+    int tempLen = inst->intersectionsLengths[i];
+    
+    inst->intersections[i]=inst->intersections[j];
+    inst->intersectionsLengths[i]=inst->intersectionsLengths[j];
+
+    inst->intersections[j]=tempInter;
+    inst->intersectionsLengths[j]=tempLen;
+}
+
+
+int compareIntersections(instance *inst, int i, int j)
+{
+    // j<i for length
+    if(inst->intersectionsLengths[i] > inst->intersectionsLengths[j])
+        return 1;
+    if(inst->intersectionsLengths[i] < inst->intersectionsLengths[j])
+        return 0;
+    for (int k=0; k<inst->intersectionsLengths[i]; k++)
+    {
+        if(inst->intersections[i][k] > inst->intersections[j][k])
+            return 1;
+        if(inst->intersections[i][k] < inst->intersections[j][k])
+            return 0;
+    }
+    return 0;
+}
+
+
+
+void purgeDuplicates(instance *inst)
+{
+    int **intersections = (int **)calloc(inst->numIntersections, sizeof(int *));
+    int *intersectionsLen =(int*)calloc(inst->numIntersections, sizeof(int));
+    
+    int lastIn = 0; // index in the old array of the last constraint inserted.
+    int idxNew = 0; // index in the new array in which we want to add the next entry 
+    int nDup = 0;
+    
+    int repeatedIdx = 0;
+    int repeating = 1;
+
+    intersections[idxNew] = inst->intersections[0]; 
+    intersectionsLen[idxNew++] = inst->intersectionsLengths[0];
+    for(int i=1; i<inst->numIntersections; i++)
+    {
+        while(isEqual(inst, lastIn, i)&& i<inst->numIntersections)
+        {
+            if(repeating)
+            {
+                int* temp = intersections[repeatedIdx];
+                int tempLen = intersectionsLen[repeatedIdx];
+                intersections[repeatedIdx]=intersections[idxNew-1];
+                intersections[idxNew-1]=temp;
+                intersectionsLen[repeatedIdx]=intersectionsLen[idxNew-1];
+                intersectionsLen[idxNew-1]=tempLen;
+                repeatedIdx++;
+                repeating=0;
+            }            
+            free(inst->intersections[i]);
+            nDup++;
+            i++;
+        }
+        repeating=1;
+        intersections[idxNew] = inst->intersections[i]; 
+        intersectionsLen[idxNew++] = inst->intersectionsLengths[i];
+        lastIn=i;
+    
+    }
+    printf("Found %d duplicates\n",nDup);
+    free(inst->intersections);
+    free(inst->intersectionsLengths);
+
+    inst->intersectionsLengths = intersectionsLen;
+    inst->intersections = intersections;
+    inst->numIntersections = idxNew;
+
+}
+
+int isEqual(instance *inst, int i, int j)
+{
+    if(inst->intersectionsLengths[i] != inst->intersectionsLengths[j])
+        return 0;
+    
+    for (int k=0; k<inst->intersectionsLengths[i]; k++)
+    {
+        if(inst->intersections[i][k] != inst->intersections[j][k])
+            return 0;
+    }
+    return 1;
+}
 
 /**
  * Populate a matrix that at each variable associate all the possible intersections of constraints in which it appears.
@@ -141,6 +354,8 @@ void populateVariableConstraintTable(instance *inst)
     inst->varConstrTable = varConstrTable;
     inst->constraintCounter = constraintCounter;
 }
+
+
 
 
 /**
@@ -313,6 +528,10 @@ void populateIntersectionsOf2Sorted(int *izero, int *indexes, int nnz, instance 
         intersectionsLengths[i] = interSetLen[set];
     }
     inst->intersectionsLengths = intersectionsLengths;
+    inst->interSetLen=interSetLen;
+    inst->interSetStart=interSetStart;
+    inst->numInterSet=numInterSet;
+
     // printf("Length for each set");
     // print_array_int(interSetLen, numInterSet);
     // printf("Starting index for each set for each set");

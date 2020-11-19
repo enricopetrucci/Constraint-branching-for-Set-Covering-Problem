@@ -108,15 +108,14 @@ int legacyBranchingCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *c
         {
             int foundConstraint = 0;
             int i = -1;
-            double *x = (double *)calloc(inst->num_cols, sizeof(double));
             double obj;
 
             // int node;
             // CPXgetcallbackinfo(env, cbdata, wherefrom, CPX_CALLBACK_INFO_NODE_COUNT, &node);
-            
+            double *x=inst->xs[threadNum];
             // get pseudocosts on the variables computed by CPLEX
-            double *pseudocostDown = (double *)calloc(inst->num_cols, sizeof(double));
-            double *pseudocostUp = (double *)calloc(inst->num_cols, sizeof(double));
+            double *pseudocostDown = inst->varPseudocostsDown[threadNum];
+            double *pseudocostUp = inst->varPseudocostsUp[threadNum];
             CPXgetcallbackpseudocosts(env, cbdata, wherefrom, pseudocostUp, pseudocostDown, 0, inst->num_cols - 1);
 
             CPXgetcallbacknodeobjval(env, cbdata, wherefrom, &obj);
@@ -131,7 +130,7 @@ int legacyBranchingCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *c
             {
                 case 0:
                 {
-                    Max = findBestBranchingConstraint(&i, x, pseudocostDown, pseudocostUp, inst);
+                    Max = findBestBranchingConstraintFracVarNewVersion(&i, x, pseudocostDown, pseudocostUp, inst, threadNum);
                     break;
                 }
                 case 1:
@@ -165,9 +164,6 @@ int legacyBranchingCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *c
                 double end = second();
                 inst->timeInCallback[threadNum] += end - start;
             }
-            free(x);
-            free(pseudocostDown);
-            free(pseudocostUp);
             return 0;
         }
         else
@@ -276,28 +272,28 @@ double findBestBranchingConstraintFracVar(int *n, double *x, double *pseudocostD
     double start = second();
     int numIntersections = inst->numIntersections;
     
-    //prepare array for containin the estimates and the sum for each constraint 
-    double *estimateScoreDown = (double *)calloc(inst->numIntersections, sizeof(double));
-    double *estimateScoreUp = (double *)malloc(inst->numIntersections * sizeof(double));
+    //prepare arrays for containing the estimates and the sum for each constraint 
+    double *estimateScoreDown = (double *)calloc(numIntersections, sizeof(double));
+    double *estimateScoreUp = (double *)malloc(numIntersections * sizeof(double));
     // initialize estimateScoreUp to a high value in a fast way
     memset(estimateScoreUp, 127, numIntersections*sizeof(double));
 
-    double *sum = (double *)calloc(inst->numIntersections, sizeof(double));
+    double *sum = (double *)calloc(numIntersections, sizeof(double));
     double constraintScorePrevision;
     
     double epsilon = 1e-05;
 
     int numVariables = inst->num_cols;
-    int ** varConstrTable = inst->varConstrTable;
+    int ** varConstrTable = inst->varConstrTable; // tells for each variable in which constraints it is
     
-    int* constraintCounters = inst->constraintCounter;
+    int* constraintCounters = inst->constraintCounter; // array containing for each variable the number of constraints
 
     double end = second();
     inst->initTime+=end-start;
     start = end;
-    int* constraintsWithVar;
+    int* constraintsWithVar; // array containing for a single variable the constraints in which it is present
     int constraint;
-    double candidate;
+    double candidate; // for the estimate of the score up
     int constraintCounter;
 
     // cycle through all the variables
@@ -368,6 +364,133 @@ double findBestBranchingConstraintFracVar(int *n, double *x, double *pseudocostD
     end=second(); 
     inst->secondLoop+=end-start;
     
+    return (Max);
+}
+
+
+/**
+ * For each variable that is > 0 it updates the estimates for each of the constraints in which that variable appears.
+ * It also computes in the same way the sum of the variables for each constrain in order to evaluate 
+ * if they are usable for branching or not.
+ * 
+ * 
+ *
+ * @param n index of the most promesing constraint found
+ * @param x solution of the lp relaxation
+ * @param pseudocostDown array containing pseudocost down for the variables
+ * @param pseudocostUp array containing pseudocost up for the variables
+ * @param inst instance of the scp
+ * 
+ * 
+ * @returns Max the estimate of the product score
+ */
+double findBestBranchingConstraintFracVarNewVersion(int *n, double *x, double *pseudocostDown, double *pseudocostUp, instance *inst, int threadNum)
+{
+    //printf("in callback with %d\n", threadNum);
+    double start = second();
+    int numIntersections = inst->numIntersections;
+    
+    //prepare arrays for containing the estimates and the sum for each constraint 
+    // initialize estimateScoreUp to a high value in a fast way
+    double *sum = inst->sum[threadNum];
+    memset(sum, 0, numIntersections*sizeof(double));
+    double constraintScorePrevision;
+    double epsilon = 1e-05;
+    int numVariables = inst->num_cols;
+    int ** varConstrTable = inst->varConstrTable; // tells for each variable in which constraints it is
+    int* constraintCounters = inst->constraintCounter; // array containing for each variable the number of constraints
+    double end = second();
+    inst->initTime+=end-start;
+    start = end;
+    int* constraintsWithVar; // array containing for a single variable the constraints in which it is present
+    double candidate; // for the estimate of the score up
+    int constraintCounter;
+
+    // cycle through all the variables
+    for (int i = 0; i < numVariables; i++)
+    {
+        if (x[i] > epsilon)
+        {
+            constraintsWithVar = varConstrTable[i];
+            constraintCounter = constraintCounters[i];
+            // cycle all the constraints in which the variable is present
+            for (int j = 0; j < constraintCounter; j++)
+            {   
+                sum[constraintsWithVar[j]] += x[i];
+            }
+        }
+    }
+
+    end=second(); 
+    inst->firstLoop+=end-start;
+    start = end;
+    double Max = 0;
+    int best_i = -1;
+    int* intersectionsLengths = inst->intersectionsLengths; 
+    int constrLength;
+    double currSum;
+    double estimateScoreUpComplete;
+    double estimateScoreDown; 
+    double estimateScoreUp;        
+
+    int* constraint;
+    
+    int var;
+    int constraintNotUsable = 0;
+    int** intersections = inst->intersections;
+    int nonImprovingConstraints = 0;
+    int lookAhead = inst->lookAhead;
+    //cycle all the intersections
+    
+    for (int i = 0; i < numIntersections && nonImprovingConstraints < lookAhead; i++)
+    {
+        estimateScoreDown = 0;
+        estimateScoreUp = INT_MAX;
+        
+        constrLength = intersectionsLengths[i];
+        currSum = sum[i];
+         
+        // constraint is usable
+        if (currSum > epsilon * constrLength && currSum < 1 - epsilon * constrLength)
+        {
+            constraint = intersections[i];
+            // for each variable in the current constraint update sum ad compute pseudocosts
+            for (int k = 0; k < constrLength; k++)
+            {
+                var = constraint[k];
+                estimateScoreDown += pseudocostDown[var] * x[var];
+
+                candidate = pseudocostUp[var];
+
+                if(estimateScoreUp > candidate)
+                    estimateScoreUp = candidate;
+            }
+
+            // multiply the minimum pseudocode up for the fraction that is needed for the sum to reach 1
+            estimateScoreUpComplete = estimateScoreUp * (1 - currSum);
+            
+            constraintScorePrevision = estimateScoreUpComplete * estimateScoreDown;
+            if (Max < constraintScorePrevision)
+            {
+                Max = constraintScorePrevision;
+                best_i = i;
+
+                //printf("new max for Constraints prevision: %f\n", Max);
+            }
+            else
+            {
+                nonImprovingConstraints++;   
+            }
+        }
+        else
+        {
+            constraintNotUsable++;   
+        }
+    }
+    // printf("constraintNotUsable %d out of %d\n",constraintNotUsable, inst->numIntersections);
+    *n = best_i;
+    end=second(); 
+    inst->secondLoop+=end-start;
     return (Max);
 }
 
@@ -502,28 +625,82 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
         indexes = (int *)realloc(indexes, nnz * sizeof(int));     // realloc should free the unused spaced of the array
         values = (double *)realloc(values, nnz * sizeof(double)); // realloc should free the unused spaced of the array
         
-        double start = second();
+        double start;
+        double end;
+        inst->initTime=0;
+        inst->firstLoop=0;
+        inst->secondLoop=0;
+
+        //sortIntersections(inst);
+
+        
+        start = second();
         populateIntersectionsOf2(izero, indexes, nnz, inst);
-        double end = second();
-        printf("Found %d constraint intersections in %f\n", inst->numIntersections, end - start);
+        end = second();
+        printf("Found %d constraint intersections non reordered in %f\n", inst->numIntersections, end - start);
 
         inst->initTime=0;
         inst->firstLoop=0;
         inst->secondLoop=0;
-        // start = second();
-        // populateIntersectionsOf2Sorted(izero, indexes, nnz, inst);
-        // end = second();
-        // printf("Found %d constraint intersections unsorted in %f\n", inst->numIntersections, end - start);
 
-        // start = second();
-        // populateIntersectionsOf2NoDup(izero, indexes, nnz, inst);
-        // end = second();
-        // printf("Found %d constraint intersections sorted without duplicates in %f\n", inst->numIntersections, end - start);
+        start = second();
+        
+        // auxiliary arrays used in the merge sort, one for the intersections and one for their lengths
+        int **aux= (int **)calloc(inst->numIntersections, sizeof(int*));
+        int *aux1= (int *)calloc(inst->numIntersections, sizeof(int));
+        merge_sort1(0, inst->numIntersections-1, aux, aux1, inst);
+        
+        free(aux);
+        free(aux1);
+
+        end = second();
+        printf("Sorted intersections in %f\n", end - start);
+        
+        FILE* f;
+        f = fopen("sortedConstraintsAfterMerge1.txt", "w");
+        fprint_array_int_int2(f, inst->intersections, inst->intersectionsLengths, inst->numIntersections);
+        fprint_array_int(f, inst->intersectionsLengths, inst->numIntersections);
+        fclose(f);
+        
+        start = second();
+        purgeDuplicates(inst);
+        end = second();
+        printf("Eliminated duplicates in %f. Remaining %d constraints \n", end - start, inst->numIntersections);
+
+
+        f = fopen("sortedConstraintsAfterMerge1AndWODup.txt", "w");
+        fprint_array_int_int2(f, inst->intersections, inst->intersectionsLengths, inst->numIntersections);
+        fprint_array_int(f, inst->intersectionsLengths, inst->numIntersections);
+        fclose(f);
+        
 
         start = second();
         populateVariableConstraintTable(inst);
         end = second();
         printf("Populated variable-constraint table in %f\n", end - start);
+
+
+
+        // allocate arrays only once for each thread to use inside the callback
+
+        inst->xs = (double **)malloc(inst->threads * sizeof(double*));
+        inst->varPseudocostsDown = (double **)malloc(inst->threads * sizeof(double*));
+        inst->varPseudocostsUp = (double **)malloc(inst->threads * sizeof(double*));
+        //inst->estimateScoreDown = (double **)malloc(inst->threads * sizeof(double*));
+        //inst->estimateScoreUp = (double **)malloc(inst->threads * sizeof(double*));
+        // inst->isInit = (double **)malloc(inst->threads * sizeof(double*));
+        // initialize estimateScoreUp to a high value in a fast way
+        inst->sum = (double **)malloc(inst->threads * sizeof(double*));
+    
+        for (int i=0; i<inst->threads; i++)
+        {
+            inst->xs[i] = (double *)malloc(inst->num_cols * sizeof(double));
+            inst->varPseudocostsDown[i] = (double *)malloc(inst->num_cols * sizeof(double));
+            inst->varPseudocostsUp[i] = (double *)malloc(inst->num_cols * sizeof(double));
+            // inst->estimateScoreDown[i] = (double *)malloc(inst->numIntersections * sizeof(double));
+            // inst->estimateScoreUp[i] = (double *)malloc(inst->numIntersections * sizeof(double));
+            inst->sum[i] = (double *)malloc(inst->numIntersections * sizeof(double));
+        }
 
         free(izero);
         free(indexes);
@@ -562,6 +739,18 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
         }
         free(inst->varConstrTable);
         free(inst->constraintCounter);
+        for (int i=0; i<inst->threads; i++)
+        {
+            free(inst->xs[i]);
+            free(inst->varPseudocostsDown[i]);
+            free(inst->varPseudocostsUp[i]);
+            free(inst->sum[i]);
+        }
+
+        free(inst->xs);
+        free(inst->varPseudocostsDown);
+        free(inst->varPseudocostsUp);
+        free(inst->sum);
 
     }
 
@@ -588,11 +777,12 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
 
     printf("Total time in callback = %f which is %f%% of the total\n", callbackTime, 100 * callbackTime / (second() - inst->startTime));
     printf("Time spent in callback choosing the best constraint: %f\n", findingConstraintTime);
-
-    printf("Total time spent during initialization = %f which is %f%% of the total\n",inst->initTime, 100 * inst->initTime / (second() - inst->startTime));
-    printf("Total time spent in the first loop = %f which is %f%% of the total\n",inst->firstLoop, 100 * inst->firstLoop / (second() - inst->startTime));
-    printf("Total time spent in the second loop = %f which is %f%% of the total\n",inst->secondLoop, 100 * inst->secondLoop / (second() - inst->startTime));
-    
+    if(1)
+    {
+        printf("Total time spent during initialization = %f which is %f%% of the total\n",inst->initTime, 100 * inst->initTime / (second() - inst->startTime));
+        printf("Total time spent in the first loop = %f which is %f%% of the total\n",inst->firstLoop, 100 * inst->firstLoop / (second() - inst->startTime));
+        printf("Total time spent in the second loop = %f which is %f%% of the total\n",inst->secondLoop, 100 * inst->secondLoop / (second() - inst->startTime));
+    }
     free(inst->solution);
     free(inst->constraintBranching);
     free(inst->defaultBranching);
@@ -677,9 +867,9 @@ void saveComputationResults(instance *inst)
     else // file doesn't exist
     {
         f = fopen(fileName, "w");
-        fprintf(f, "Instance,Time,Best Int.,Best Val.,MIP Gap,Nodes,Nodes Left,Constraint Branching,Varaible Branching,Seed,Threads, Callback, Branching, constraintBranchVer\n"); 
+        fprintf(f, "Instance,Time,Best Int.,Best Val.,MIP Gap,Nodes,Nodes Left,Constraint Branching,Varaible Branching,Seed,Threads,Callback,Branching,constraintBranchVer,delta,lookAhead\n"); 
     }
-    fprintf(f, "%s,%f,%f,%f,%f,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",inst->input_file, inst->executionTime, inst->bestInt, inst->bestVal, inst->MIPgap, inst->exploredNodes, inst->remainingNodes, inst->totalConstraintBranching, inst->totalVariableBranching, inst->seed, inst->threads, inst->callback, inst->branching, inst->constraintBranchVer);
+    fprintf(f, "%s,%f,%f,%f,%f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",inst->input_file, inst->executionTime, inst->bestInt, inst->bestVal, inst->MIPgap, inst->exploredNodes, inst->remainingNodes, inst->totalConstraintBranching, inst->totalVariableBranching, inst->seed, inst->threads, inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead);
      
 }
     
