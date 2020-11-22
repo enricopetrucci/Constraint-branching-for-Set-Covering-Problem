@@ -100,55 +100,19 @@ void populateIntersectionsOf2(int *izero, int *indexes, int nnz, instance *inst)
     // fclose(f);
 }
 
-// function to sort the subsection a[i .. j] of the array a[]
-void merge_sort(int i, int j, int** aux, instance* inst) {
-    int** a = inst->intersections;
-    if (j <= i) {
-        return;     // the subsection is empty or a single element
-    }
-    int mid = (i + j) / 2;
 
-    // left sub-array is a[i .. mid]
-    // right sub-array is a[mid + 1 .. j]
-    merge_sort(i, mid, aux, inst);     // sort the left sub-array recursively
-    merge_sort(mid + 1, j, aux, inst);     // sort the right sub-array recursively
-    
-    int pointer_left = i;       // pointer_left points to the beginning of the left sub-array
-    int pointer_right = mid + 1;        // pointer_right points to the beginning of the right sub-array
-    int k;      // k is the loop counter
-
-    // we loop from i to j to fill each element of the final merged array
-    for (k = i; k <= j; k++) {
-        if (pointer_left == mid + 1) {      // left pointer has reached the limit
-            aux[k] = a[pointer_right];
-            pointer_right++;
-        } else if (pointer_right == j + 1) {        // right pointer has reached the limit
-            aux[k] = a[pointer_left];
-            pointer_left++;
-        } else if (compareIntersections(inst, pointer_right, pointer_left)) {        // pointer left points to smaller element
-            aux[k] = a[pointer_left];
-            pointer_left++;
-        } else {        // pointer right points to smaller element
-            aux[k] = a[pointer_right];
-            pointer_right++;
-        }
-    }
-
-    for (k = i; k <= j; k++) {      // copy the elements from aux[] to a[]
-        a[k] = aux[k];
-    }
-    // FILE *f;
-    // f = fopen("sortedConstraints.txt", "w");
-    // fprint_array_int_int2(f, inst->intersections, inst->intersectionsLengths, inst->numIntersections);
-    // fprint_array_int(f, inst->intersectionsLengths, inst->numIntersections);
-    // fclose(f);
-    // printf("breakpoint\n");
-}
-
-
-
-// function to sort the subsection a[i .. j] of the array a[]
-void merge_sort1(int i, int j, int** aux, int* aux1, instance* inst) {
+/**
+ * Recursive function to sort the subsection a[i .. j] of both intersections
+ * and the intersectionsLength arrays
+ *
+ * @param i starting that defines the subsection to sort
+ * @param j end that defines the subsection to sort
+ * @param aux auxiliary array
+ * @param aux1 auxiliary array
+ * @param inst scp instance
+ *
+ */
+void merge_sort(int i, int j, int** aux, int* aux1, instance* inst) {
     int** a = inst->intersections;
     int* a1 = inst->intersectionsLengths;
 
@@ -159,8 +123,8 @@ void merge_sort1(int i, int j, int** aux, int* aux1, instance* inst) {
 
     // left sub-array is a[i .. mid]
     // right sub-array is a[mid + 1 .. j]
-    merge_sort1(i, mid, aux, aux1,  inst);     // sort the left sub-array recursively
-    merge_sort1(mid + 1, j, aux, aux1, inst);     // sort the right sub-array recursively
+    merge_sort(i, mid, aux, aux1,  inst);     // sort the left sub-array recursively
+    merge_sort(mid + 1, j, aux, aux1, inst);     // sort the right sub-array recursively
     
     int pointer_left = i;       // pointer_left points to the beginning of the left sub-array
     int pointer_right = mid + 1;        // pointer_right points to the beginning of the right sub-array
@@ -191,55 +155,30 @@ void merge_sort1(int i, int j, int** aux, int* aux1, instance* inst) {
         a[k] = aux[k];
         a1[k] = aux1[k];
     }
-    // FILE *f;
-    // f = fopen("sortedConstraints.txt", "w");
-    // fprint_array_int_int2(f, inst->intersections, inst->intersectionsLengths, inst->numIntersections);
-    // fprint_array_int(f, inst->intersectionsLengths, inst->numIntersections);
-    // fclose(f);
-    // printf("breakpoint\n");
 }
 
-
-void sortIntersections(instance *inst)
-{
-    int i, j; 
-    int min_idx;
-
-    for (i = 0; i < inst->numIntersections - 1; i++)
-    { 
-        min_idx = i;
-        for(j = i; j < inst->numIntersections; j++)
-        {
-            if(compareIntersections(inst, min_idx, j))
-            {
-                min_idx = j;
-            }
-        }
-        swap(inst, i, min_idx);
-    }
-}
-
-
-void swap(instance *inst, int i, int j)
-{
-    int* tempInter = inst->intersections[i];
-    int tempLen = inst->intersectionsLengths[i];
-    
-    inst->intersections[i]=inst->intersections[j];
-    inst->intersectionsLengths[i]=inst->intersectionsLengths[j];
-
-    inst->intersections[j]=tempInter;
-    inst->intersectionsLengths[j]=tempLen;
-}
-
+/** Function to compare two constraints, it behaves differently based on the value of reverse.
+ * If reverse is 0 (default) the function can be used to sort the constraints from short to long.
+ * If reverse is 1 the function can be used to sort the constraints from long to short.
+ * 
+ * Constraint with the same length are sorted for variable indexes
+ * 
+ * 
+ * @param inst scp instance
+ * @param i first constraint index
+ * @param j second constraint index
+ * 
+ */ 
 
 int compareIntersections(instance *inst, int i, int j)
 {
-    // j<i for length
-    if(inst->intersectionsLengths[i] > inst->intersectionsLengths[j])
+    // compare lengths
+    if((!inst->reverse && inst->intersectionsLengths[i] > inst->intersectionsLengths[j]) || (inst->reverse && inst->intersectionsLengths[i] < inst->intersectionsLengths[j]))
         return 1;
-    if(inst->intersectionsLengths[i] < inst->intersectionsLengths[j])
+    if((!inst->reverse && inst->intersectionsLengths[i] < inst->intersectionsLengths[j]) || (inst->reverse && inst->intersectionsLengths[i] > inst->intersectionsLengths[j]))
         return 0;
+    
+    
     for (int k=0; k<inst->intersectionsLengths[i]; k++)
     {
         if(inst->intersections[i][k] > inst->intersections[j][k])
@@ -256,6 +195,13 @@ void purgeDuplicates(instance *inst)
 {
     int **intersections = (int **)calloc(inst->numIntersections, sizeof(int *));
     int *intersectionsLen =(int*)calloc(inst->numIntersections, sizeof(int));
+    
+    if(inst->reverse==0)
+        inst->maxConstrLen = inst->intersectionsLengths[inst->numIntersections-1];
+    else
+        inst->maxConstrLen = inst->intersectionsLengths[0];
+    
+    printf("Longest constraint has %d variables\n", inst->maxConstrLen);
     
     int lastIn = 0; // index in the old array of the last constraint inserted.
     int idxNew = 0; // index in the new array in which we want to add the next entry 

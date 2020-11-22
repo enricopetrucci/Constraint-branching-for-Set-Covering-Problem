@@ -44,7 +44,7 @@ int main(int argc, char** argv)
 
 		
 	
-	printf("total execution time %f sec.\n", second()-inst.startTime);
+	printf("total execution time %f sec.\n", inst.executionTime);
 	return 0;
 }
 
@@ -76,6 +76,8 @@ void parse_command_line(int argc, char** argv, instance* inst)
 	inst->storeResults = 0;
 	inst->delta = 2;
 	inst->lookAhead = 100;
+	inst->reverse = 0;
+
 	// parse the parameters
 	for (int i = 1; i < argc; i++)
 	{
@@ -93,6 +95,7 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		if (strcmp(argv[i], "-storeResults") == 0) { inst->storeResults = atoi(argv[++i]); continue; } 					// store the results of the computation 
 		if (strcmp(argv[i], "-delta") == 0) { inst->delta = atoi(argv[++i]); continue; } 								// delta 
 		if (strcmp(argv[i], "-lookAhead") == 0) { inst->lookAhead = atoi(argv[++i]); continue; } 					    // number of non improving constraints to be evaluated before stopping 
+		if (strcmp(argv[i], "-reverse") == 0) { inst->reverse = atoi(argv[++i]); continue; } 					        // reverse = 0 constraints sorted from short to long. reverse = 1 sorted from long to short
 		
 
 
@@ -114,17 +117,26 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		switch(inst->constraintBranchVer)
 		{
 			case 0:
-				printf("Using lookH\n");
+				printf("Using lookAhead after computing fractionlity\n");
 				break;
 			case 1:
 				printf("all constraint considering only fractional variables\n");
 				break;
 			case 2:
 				printf("only constraints that contains best variable\n");
+				break;
+			case 3:
+				printf("Using lookAhead during the fractionlity computation\n");
+				break;
+
 		}
-		if(inst->constraintBranchVer!=0)
+		if(inst->constraintBranchVer!=0 && inst->constraintBranchVer!=3)
 		{
 			inst->lookAhead=0;
+		}
+		else
+		{
+			printf("using lookahead = %d\n", inst->lookAhead);
 		}
 	}
 

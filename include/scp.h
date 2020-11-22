@@ -49,6 +49,7 @@ typedef struct {
 	int * intersectionsLengths;
 
 	double startTime;	
+	double endTime;
 	int* constraintBranching;
 	int* defaultBranching;
 
@@ -78,6 +79,10 @@ typedef struct {
 	int storeResults;
 	int delta;
 
+	double callbackTime1;
+	double callbackTime2;
+	double callbackTime3;
+
 	int* interSetLen;
 	int* interSetStart;
 	int numInterSet;
@@ -88,8 +93,11 @@ typedef struct {
 	double **varPseudocostsDown;
 	double **estimateScoreDown;
     double **estimateScoreUp;
-    double **isInit;
     double **sum;
+	double *values;
+	int maxConstrLen;
+
+	int reverse;
 
 	int lookAhead;
     
@@ -104,11 +112,16 @@ double findBestBranchingConstraintContainingVar(int *n, int bestVar, double* x, 
 
 double findBestBranchingConstraintFracVar(int *n, double* x, double* pseudocostDown, double* pseudocostUp, instance* inst);
 
-double findBestBranchingConstraintFracVarNewVersion(int *n, double *x, double *pseudocostDown, double *pseudocostUp, instance *inst, int threadNum);
+double findBestBranchingConstraintFracVarLookAhead(int *n, double *x, double *pseudocostDown, double *pseudocostUp, instance *inst, int threadNum);
+
+double findBestBranchingConstraintLookAhead(int *n, double *x, double *pseudocostDown, double *pseudocostUp, instance *inst);
 
 void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance* inst);
 
-void addBranchingChilds(CPXCENVptr env, void *cbdata, int wherefrom, double obj, int i, instance* inst);
+void addBranchingChilds(CPXCENVptr env, void *cbdata, int wherefrom, double obj, int i, int threadNum, instance *inst);
+
+void addBranchingChildsAlloc(CPXCENVptr env, void *cbdata, int wherefrom, double obj, int i, instance *inst);
+
 
 void saveComputationResults(instance *inst);
 

@@ -17,9 +17,10 @@ void swap(instance *inst, int i, int j);
 
 void purgeDuplicates(instance *inst);
 
-void merge_sort(int i, int j, int** aux, instance* inst);
 
-void merge_sort1(int i, int j, int** aux, int* aux1, instance* inst);
+int isEqual(instance *inst, int i, int j);
+
+void merge_sort(int i, int j, int** aux, int* aux1, instance* inst);
 
 int compareIntersections(instance *inst, int i, int j);
 
