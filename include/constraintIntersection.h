@@ -11,6 +11,8 @@
 
 void populateIntersectionsOf2(int* izero, int* indexes, int nnz, instance* inst);
 
+void populateIntersectionsOf2Original(int *izero, int *indexes, int nnz, instance *inst);
+
 void sortIntersections(instance *inst);
 
 void swap(instance *inst, int i, int j);

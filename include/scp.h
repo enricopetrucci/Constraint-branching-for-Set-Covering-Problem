@@ -77,8 +77,9 @@ typedef struct {
 	int totalConstraintBranching;
 	int totalVariableBranching;
 	int storeResults;
-	int delta;
+	double delta;
 
+	double prepTime;
 	double callbackTime1;
 	double callbackTime2;
 	double callbackTime3;

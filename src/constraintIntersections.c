@@ -20,6 +20,101 @@
  */
 void populateIntersectionsOf2(int *izero, int *indexes, int nnz, instance *inst)
 {
+    int **intersections = (int **)malloc(inst->num_rows * (inst->num_rows - 1) / 2 * sizeof(int *));
+    int *intersectionsLengths = (int *)malloc(inst->num_rows * (inst->num_rows - 1) / 2 * sizeof(int));
+    // initialize estimateScoreUp to the max int value
+
+    int lastAllocated = 0;
+    int numIntersections = 0;
+
+    // alloc space for first intersection
+    int* newConstraint = (int *)malloc(inst->num_cols * sizeof(int));
+    // cycle the constraints, choosing the first one
+    for (int i = 0; i < inst->num_rows - 1; i++)
+    {
+        int constStart1 = izero[i];
+        int constLen1 = izero[i + 1] - constStart1;
+
+        //printf("Considering i = %d, starts in %d it has length %d\n", i, izero[i], length);
+        //Select the second constraint
+        for (int n = i + 1; n < inst->num_rows; n++)
+        {
+            int constStart2 = izero[n];
+            int j = 0;
+            int m = 0;
+            int intersectionLen = 0;
+
+            int costLen2 = (n < inst->num_rows - 1 ? izero[n + 1] - constStart2 : nnz - constStart2);
+            //printf("Compared with n = %d, that starts in %d it has length %d\n", n, izero[n], length);
+
+            // cycle on all the variables inside both constraints
+            while (j < constLen1 && m < costLen2 && !(intersectionLen==0 && (j==constLen1-1 || m==costLen2-1 ))) // problem for the last constraint's length
+            {
+                int var1 = indexes[constStart1 + j];
+                int var2 = indexes[constStart2 + m];
+                // case 1: same variable. The variable is added to the computed information
+                if ( var1 == var2)
+                {
+                    // printf("found intersection for variable %d in positions %d and %d\n", indexes[izero[i]+j], j, m);
+                    newConstraint[intersectionLen] = var1;
+                    intersectionLen++;
+                    m++;
+                    j++;
+                }
+                else
+                {
+                    // case 2 and 3: mismatch, increase the index of corresponding to the lowest variable
+                    if (var1 < var2)
+                    {
+                        j++;
+                    }
+                    else
+                    {
+                        m++;
+                    }
+                }
+            }
+            // if the intersecion is non empty resize array
+            if (intersectionLen > 1)
+            {
+                intersections[numIntersections] = (int *)realloc(newConstraint, intersectionLen * sizeof(int));
+                intersectionsLengths[numIntersections] = intersectionLen;
+                numIntersections++;
+                // prepare next array
+                newConstraint = (int *)malloc(inst->num_cols * sizeof(int));
+            }
+        }
+    }
+    
+    // printf("last allocated = %d length = %d\n", lastAllocated, numIntersections);
+    free(newConstraint);
+
+    //intersections=(int**)realloc(intersections, numIntersections*sizeof(int*));
+
+    inst->intersections = intersections;
+    inst->intersectionsLengths = intersectionsLengths;
+    inst->numIntersections = numIntersections;
+
+    // FILE *f;
+    // f = fopen("IntersectionsUnsorted.txt", "w");
+    // fprint_array_int_int2(f, intersections, intersectionsLengths, numIntersections);
+    // fprint_array_int(f, inst->intersectionsLengths, inst->numIntersections);
+    // fclose(f);
+}
+
+
+/**
+ * Compute all possible intersections between the
+ * constraints taken in paris.
+ *
+ * @param izero starting index for each constraint
+ * @param indexes indexes of the variables in the constraints
+ * @param nnz number of non zeros inside index
+ * @param inst instance of our problem
+ *
+ */
+void populateIntersectionsOf2Original(int *izero, int *indexes, int nnz, instance *inst)
+{
     int **intersections = (int **)calloc(inst->num_rows * (inst->num_rows - 1) / 2, sizeof(int *));
     int *intersectionsLengths = (int *)calloc(inst->num_rows * (inst->num_rows - 1) / 2, sizeof(int));
     // initialize estimateScoreUp to the max int value
@@ -89,6 +184,9 @@ void populateIntersectionsOf2(int *izero, int *indexes, int nnz, instance *inst)
 
     //printf("Total length %d max length %d\n", numIntersections, inst->num_rows * (inst->num_rows - 1) / 2);
 
+    //intersections=(int**)realloc(intersections, numIntersections*sizeof(int*));
+    
+
     inst->intersections = intersections;
     inst->intersectionsLengths = intersectionsLengths;
     inst->numIntersections = numIntersections;
@@ -99,6 +197,7 @@ void populateIntersectionsOf2(int *izero, int *indexes, int nnz, instance *inst)
     // fprint_array_int(f, inst->intersectionsLengths, inst->numIntersections);
     // fclose(f);
 }
+
 
 
 /**
@@ -207,23 +306,25 @@ void purgeDuplicates(instance *inst)
     int idxNew = 0; // index in the new array in which we want to add the next entry 
     int nDup = 0;
     
-    int repeatedIdx = 0;
+    int repeatedIdx = 0; // remember the index in which the next duplicate should go
     int repeating = 1;
 
     intersections[idxNew] = inst->intersections[0]; 
     intersectionsLen[idxNew++] = inst->intersectionsLengths[0];
+    //cycle on all the original intersections
     for(int i=1; i<inst->numIntersections; i++)
     {
-        while(isEqual(inst, lastIn, i)&& i<inst->numIntersections)
+        //printf("i = %d\n", i);
+        while(i<inst->numIntersections && isEqual(inst, lastIn, i))
         {
             if(repeating)
             {
                 int* temp = intersections[repeatedIdx];
                 int tempLen = intersectionsLen[repeatedIdx];
-                intersections[repeatedIdx]=intersections[idxNew-1];
-                intersections[idxNew-1]=temp;
-                intersectionsLen[repeatedIdx]=intersectionsLen[idxNew-1];
-                intersectionsLen[idxNew-1]=tempLen;
+                intersections[repeatedIdx] = intersections[idxNew-1];
+                intersections[idxNew-1] = temp;
+                intersectionsLen[repeatedIdx] = intersectionsLen[idxNew-1];
+                intersectionsLen[idxNew-1] = tempLen;
                 repeatedIdx++;
                 repeating=0;
             }            
@@ -231,13 +332,16 @@ void purgeDuplicates(instance *inst)
             nDup++;
             i++;
         }
-        repeating=1;
-        intersections[idxNew] = inst->intersections[i]; 
-        intersectionsLen[idxNew++] = inst->intersectionsLengths[i];
-        lastIn=i;
-    
+        if(i<inst->numIntersections)
+        {
+            repeating=1;
+            intersections[idxNew] = inst->intersections[i]; 
+            intersectionsLen[idxNew++] = inst->intersectionsLengths[i];
+            lastIn=i;
+        }    
     }
     printf("Found %d duplicates\n",nDup);
+    printf("remaining single constraint %d\n", idxNew);
     free(inst->intersections);
     free(inst->intersectionsLengths);
 

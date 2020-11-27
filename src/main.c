@@ -93,7 +93,7 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		if (strcmp(argv[i], "-threads") == 0) { inst->threads = atoi(argv[++i]); continue; } 							// determine the number of threads
 		if (strcmp(argv[i], "-scoreComparison") == 0) { inst->scoreComparison = atoi(argv[++i]); continue; } 			// only perform score comparison 
 		if (strcmp(argv[i], "-storeResults") == 0) { inst->storeResults = atoi(argv[++i]); continue; } 					// store the results of the computation 
-		if (strcmp(argv[i], "-delta") == 0) { inst->delta = atoi(argv[++i]); continue; } 								// delta 
+		if (strcmp(argv[i], "-delta") == 0) { inst->delta = atof(argv[++i]); continue; } 								// delta 
 		if (strcmp(argv[i], "-lookAhead") == 0) { inst->lookAhead = atoi(argv[++i]); continue; } 					    // number of non improving constraints to be evaluated before stopping 
 		if (strcmp(argv[i], "-reverse") == 0) { inst->reverse = atoi(argv[++i]); continue; } 					        // reverse = 0 constraints sorted from short to long. reverse = 1 sorted from long to short
 		

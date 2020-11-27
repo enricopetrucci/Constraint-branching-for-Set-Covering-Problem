@@ -88,7 +88,7 @@ int scpopt(instance *inst)
 int legacyBranchingCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *cbhandle, int type, int sos, int nodecnt, int bdcnt, const int *nodebeg,
                             const int *indices, const char *lu, const double *bd, const double *nodeest, int *useraction_p)
 {
-    // double start = second();
+    double start = second();
     instance *inst = (instance *)cbhandle; // casting of cbhandle
     int threadNum;
     CPXgetcallbackinfo(env, cbdata, wherefrom, CPX_CALLBACK_INFO_MY_THREAD_NUM, &threadNum);
@@ -97,8 +97,8 @@ int legacyBranchingCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *c
     if (inst->branching == 0)
     {
         inst->defaultBranching[threadNum]++;
-        // double end = second();
-        // inst->timeInCallback[threadNum] += end - start;
+        double end = second();
+        inst->timeInCallback[threadNum] += end - start;
         return 0;
     }
     else // explore constraint branching
@@ -155,9 +155,6 @@ int legacyBranchingCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *c
                 }
             }
 
-            // double sec2 = second();
-            // inst->timeFindingConstraint[threadNum] += sec2 - sec1;
-            // inst->callbackTime2 += sec2 - sec1;
             double varCostDown = (0.001 > pseudocostDown[indices[0]] * x[indices[0]] ? 0.001 : pseudocostDown[indices[0]] * x[indices[0]]);
             double varCostUp = (0.001 > pseudocostUp[indices[0]] * (1 - x[indices[0]]) ? 0.001 : pseudocostUp[indices[0]] * (1 - x[indices[0]]));
 
@@ -166,24 +163,20 @@ int legacyBranchingCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *c
                 addBranchingChilds(env, cbdata, wherefrom, obj, i, threadNum, inst);
                 *useraction_p = CPX_CALLBACK_SET;
                 inst->constraintBranching[threadNum]++;
-                // double end = second();
-                // inst->timeInCallback[threadNum] += end - start;
-                // inst->callbackTime3 += end - sec2;
             }
             else
             {
                 inst->defaultBranching[threadNum]++;
-                // double end = second();
-                // inst->timeInCallback[threadNum] += end - start;
-                // inst->callbackTime3 += end - sec2;
             }
+            double end = second();
+            inst->timeInCallback[threadNum] += end - start;
             return 0;
         }
         else
         {
             inst->defaultBranching[threadNum]++;
-            // double end = second();
-            // inst->timeInCallback[threadNum] += end - start;
+            double end = second();
+            inst->timeInCallback[threadNum] += end - start;
             return 0;
         }
     }
@@ -601,11 +594,11 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
     char str[80];
 
     // prepare logfile
-    if (inst->branching == 0)
-        sprintf(str, "logfile_defaultBranchinglegacy.txt");
-    else
-        sprintf(str, "logfile_constraintBranchinglegacy.txt");
-    CPXsetlogfilename(env, str, "w");
+    // if (inst->branching == 0)
+    //     sprintf(str, "logfile_defaultBranchinglegacy.txt");
+    // else
+    //     sprintf(str, "logfile_constraintBranchinglegacy.txt");
+    // CPXsetlogfilename(env, str, "w");
 
     // set callback
     CPXsetbranchcallbackfunc(env, legacyBranchingCallback, inst);
@@ -621,39 +614,36 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
     inst->defaultBranching = (int *)calloc(inst->threads, sizeof(int));
 
     inst->timeInCallback = (double *)calloc(inst->threads, sizeof(double));
-    inst->timeFindingConstraint = (double *)calloc(inst->threads, sizeof(double));
+    // inst->timeFindingConstraint = (double *)calloc(inst->threads, sizeof(double));
 
     if (inst->branching == 1)
     {
+
         CPXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_PSEUDO);
         // Get the rows of the problem
         int nnz;
-        int *izero = (int *)calloc(inst->num_rows, sizeof(int));
-        int *indexes = (int *)calloc(inst->num_rows * inst->num_cols, sizeof(int));         
-        double *values = (double *)calloc(inst->num_rows * inst->num_cols, sizeof(double)); 
+        int *izero = (int *)malloc(inst->num_rows * sizeof(int));
+        int *indexes = (int *)malloc(inst->num_rows * inst->num_cols * sizeof(int));         
+        double *values = (double *)malloc(inst->num_rows * inst->num_cols * sizeof(double)); 
         int surplus_p;
 
         CPXgetrows(env, lp, &nnz, izero, indexes, values, inst->num_rows * inst->num_cols, &surplus_p, 0, inst->num_rows - 1);
 
+        printf("pre preprocessing: %f\n", second()-inst->startTime);
         double start;
         double end;
-        inst->initTime=0;
-        inst->firstLoop=0;
-        inst->secondLoop=0;
 
         start = second();
         populateIntersectionsOf2(izero, indexes, nnz, inst);
         end = second();
-        printf("Found %d constraint intersections non reordered in %f\n", inst->numIntersections, end - start);
-
-        inst->initTime=0;
-        inst->firstLoop=0;
-        inst->secondLoop=0;
-
-        inst->callbackTime1=0;
-        inst->callbackTime2=0;
-        inst->callbackTime3=0;
+        printf("Found %d constraint intersections non reordered in %f. Up to now %f\n", inst->numIntersections, end - start, end-inst->startTime);
         
+        // start = second();
+        // populateIntersectionsOf2Original(izero, indexes, nnz, inst);
+        // end = second();
+        // printf("Found %d constraint intersections non reordered original in %f. Up to now %f\n", inst->numIntersections, end - start, end-inst->startTime);
+        
+  
         start = second();
         
         // auxiliary arrays used in the merge sort, one for the intersections and one for their lengths
@@ -665,17 +655,17 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
         free(aux1);
 
         end = second();
-        printf("Sorted intersections in %f\n", end - start);
+        printf("Sorted intersections in %f up to now %f \n", end - start, end-inst->startTime);
         
         start = second();
         purgeDuplicates(inst);
         end = second();
-        printf("Eliminated duplicates in %f. Remaining %d constraints \n", end - start, inst->numIntersections);
+        printf("Eliminated duplicates in %f. Remaining %d constraints up to now %f \n", end - start, inst->numIntersections, end-inst->startTime);
 
         start = second();
         populateVariableConstraintTable(inst);
         end = second();
-        printf("Populated variable-constraint table in %f\n", end - start);
+        printf("Populated variable-constraint table in %f up to now %f \n", end - start, end-inst->startTime);
 
 
 
@@ -705,6 +695,8 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
         free(values);
     }
 
+    inst->prepTime = second() - inst->startTime;
+
     // solve the problem
     if (CPXmipopt(env, lp)) 
         print_error(" Problems on CPXmipopt");
@@ -731,7 +723,6 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
         inst->totalConstraintBranching += (inst->constraintBranching[i]);
         inst->totalVariableBranching += (inst->defaultBranching[i]);
         callbackTime += (inst->timeInCallback[i]);
-        findingConstraintTime += (inst->timeFindingConstraint[i]);
     }
     if(inst->storeResults)
     {
@@ -744,9 +735,13 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
         saveComputationResults(inst);
     }
     
-    printf("%d constraint branching\n%d default branching\n", inst->totalConstraintBranching, inst->totalVariableBranching);
 
-    // printf("Total time in callback = %f which is %f%% of the total\n", callbackTime, 100 * callbackTime / (second() - inst->startTime));
+    
+    printf("%d constraint branching\n%d default branching\n", inst->totalConstraintBranching, inst->totalVariableBranching);
+    
+    printf("Total time spent during preprocessing = %f which is %f%% of the total\n",inst->prepTime, 100 * inst->prepTime / inst->executionTime);
+    
+    printf("Total time spent in callback = %f which is %f%% of the total\n", callbackTime, 100 * callbackTime / inst->executionTime);
     // printf("Time spent in callback choosing the best constraint: %f\n", findingConstraintTime);
     // if(inst->constraintBranchVer==0)
     // {
@@ -764,17 +759,22 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
         for (int i = 0; i < inst->numIntersections; i++)
         {
             free(inst->intersections[i]);
+            //printf("Free intersection %d of %d\n", i, inst->numIntersections);
+            
         }
+        
+        printf("Freed all the intersections\n");
+        
         free(inst->intersections);
         free(inst->intersectionsLengths);
-
+        printf("Free intersections\n");
         for(int i = 0; i < inst->num_cols; i++)
         {
             free(inst->varConstrTable[i]);
         }
         free(inst->varConstrTable);
         free(inst->constraintCounter);
-        
+        printf("Free varConstrTable\n");
         for (int i=0; i<inst->threads; i++)
         {
             free(inst->xs[i]);
@@ -794,7 +794,7 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
     free(inst->constraintBranching);
     free(inst->defaultBranching);
     free(inst->timeInCallback);
-    free(inst->timeFindingConstraint);
+    // free(inst->timeFindingConstraint);
 }
 
 
@@ -846,7 +846,7 @@ void saveComputationResults(instance *inst)
         input_file[i]=inst->input_file[i+start];
     }
     input_file[i]=0;
-    sprintf(fileName, "../results/%d_%d_%d_%d_%d/%s_%d_%d_%d_%d_%d_%d_%.0f.csv", inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead, input_file, inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead, inst->threads, inst->timelimit);
+    sprintf(fileName, "../results/%d_%d_%d_%.1f_%d/%s_%d_%d_%d_%.1f_%d_%d_%.0f.csv", inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead, input_file, inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead, inst->threads, inst->timelimit);
     printf("Saving results in file %s\n", fileName);
     FILE *f;
     if( access( fileName, F_OK ) != -1 ) // file exists
@@ -858,7 +858,8 @@ void saveComputationResults(instance *inst)
         f = fopen(fileName, "w");
         fprintf(f, "Instance,Time,Best Int.,Best Val.,MIP Gap,Nodes,Nodes Left,Constraint Branching,Varaible Branching,Seed,Threads,Callback,Branching,constraintBranchVer,delta,lookAhead\n"); 
     }
-    fprintf(f, "%s,%f,%f,%f,%f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",inst->input_file, inst->executionTime, inst->bestInt, inst->bestVal, inst->MIPgap, inst->exploredNodes, inst->remainingNodes, inst->totalConstraintBranching, inst->totalVariableBranching, inst->seed, inst->threads, inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead); 
+    fprintf(f, "%s,%f,%f,%f,%f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.1f,%d\n",inst->input_file, inst->executionTime, inst->bestInt, inst->bestVal, inst->MIPgap, inst->exploredNodes, inst->remainingNodes, inst->totalConstraintBranching, inst->totalVariableBranching, inst->seed, inst->threads, inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead); 
+    fclose(f);
 }
     
 
