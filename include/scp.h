@@ -13,6 +13,11 @@
 #include <string.h> 
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+
 #include "chrono.h"  
 
 #include <cplex.h>
@@ -96,9 +101,19 @@ typedef struct {
     double **estimateScoreUp;
     double **sum;
 	double *values;
+	char *lu;
+	double *bd;
 	int maxConstrLen;
 
+	int* variableScores;
+	int* constraintScores;
+
+	int repeatedNum;
+	int repeatedFirst;
 	int reverse;
+	int average;
+
+	int sort;
 
 	int lookAhead;
     
@@ -125,5 +140,12 @@ void addBranchingChildsAlloc(CPXCENVptr env, void *cbdata, int wherefrom, double
 
 
 void saveComputationResults(instance *inst);
+
+
+int plotTreeCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *cbhandle, int type, int sos, int nodecnt, int bdcnt, const int *nodebeg,
+                            const int *indices, const char *lu, const double *bd, const double *nodeest, int *useraction_p);
+
+
+void resetPlotTree(instance *inst);
 
 #endif   /* scp_H_ */

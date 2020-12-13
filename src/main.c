@@ -77,6 +77,10 @@ void parse_command_line(int argc, char** argv, instance* inst)
 	inst->delta = 2;
 	inst->lookAhead = 100;
 	inst->reverse = 0;
+	inst->repeatedFirst = 1;
+	inst->average = 1;
+	inst->sort=1;
+
 
 	// parse the parameters
 	for (int i = 1; i < argc; i++)
@@ -96,9 +100,10 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		if (strcmp(argv[i], "-delta") == 0) { inst->delta = atof(argv[++i]); continue; } 								// delta 
 		if (strcmp(argv[i], "-lookAhead") == 0) { inst->lookAhead = atoi(argv[++i]); continue; } 					    // number of non improving constraints to be evaluated before stopping 
 		if (strcmp(argv[i], "-reverse") == 0) { inst->reverse = atoi(argv[++i]); continue; } 					        // reverse = 0 constraints sorted from short to long. reverse = 1 sorted from long to short
+		if (strcmp(argv[i], "-repeatedFirst") == 0) { inst->repeatedFirst = atoi(argv[++i]); continue; } 		        // if 1 the list of constraint keeps first the constraints that have duplicates 
+		if (strcmp(argv[i], "-average") == 0) { inst->average = atoi(argv[++i]); continue; } 					        // average = 0 does not compute the average when for the constraint scores. 
+		if (strcmp(argv[i], "-sort") == 0) { inst->sort = atoi(argv[++i]); continue; } 			  				        // sort for the score and not for the length.
 		
-
-
 	}
 	if(inst->callback=1)
 	{
@@ -110,6 +115,9 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		inst->constraintBranchVer = 0;
 		inst->delta = 0;
 		inst->lookAhead = 0;
+		inst->reverse = 0;
+		inst->sort = 0;
+		inst->average = 0;
 	}
 	else
 	{
@@ -130,7 +138,7 @@ void parse_command_line(int argc, char** argv, instance* inst)
 				break;
 
 		}
-		if(inst->constraintBranchVer!=0 && inst->constraintBranchVer!=3)
+  	    if(inst->constraintBranchVer!=0 && inst->constraintBranchVer!=3)
 		{
 			inst->lookAhead=0;
 		}
@@ -138,6 +146,30 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		{
 			printf("using lookahead = %d\n", inst->lookAhead);
 		}
+
+        if(inst->sort)
+		{
+			printf("sorting for score\n");	
+			if(inst->average)
+			{
+				printf("Considering average instead of the sum for the score\n");
+			}
+		}
+		else
+		{
+			printf("sorting for length\n");
+			inst->average=0;
+		}
+		if(inst->reverse)
+		{
+			printf("from higher to lower\n");	
+		}
+		else
+		{
+			printf("from lower to higher\n");
+		}
+		
+
 	}
 
 }

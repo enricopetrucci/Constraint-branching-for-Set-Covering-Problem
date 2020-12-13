@@ -104,6 +104,50 @@ void populateIntersectionsOf2(int *izero, int *indexes, int nnz, instance *inst)
 
 
 /**
+ * Compute the frequency of all variables on the original constraints.
+ *
+ * @param indexes indexes of the variables in the constraints
+ * @param nnz number of non zeros inside index
+ * @param inst instance of our problem
+ *
+ */
+void computeVariableFrequencies(int *indexes, int nnz, instance *inst)
+{
+    int* variableScores=(int *)calloc(inst->num_cols, sizeof(int));
+    // cycle the constraints, choosing the first one
+    for (int i = 0; i < nnz; i++)
+    {
+        variableScores[indexes[i]]++;
+    }
+    inst->variableScores = variableScores;
+}
+
+
+void computeConstraintScores(instance *inst)
+{
+    int* constraintScores = (int *)calloc(inst->numIntersections, sizeof(int));
+    // cycle the constraints
+    for (int i = 0; i < inst->numIntersections; i++)
+    {
+        //cycle the variables in the constraint
+        for(int j = 0; j < inst->intersectionsLengths[i]; j++)
+        {
+            constraintScores[i] += inst->variableScores[inst->intersections[i][j]];
+        }
+    
+        //compute average
+        if(inst->average)
+        {
+            constraintScores[i] /= inst->intersectionsLengths[i];
+        
+        }
+    }
+    inst->constraintScores = constraintScores;
+}
+
+
+
+/**
  * Compute all possible intersections between the
  * constraints taken in paris.
  *
@@ -256,6 +300,73 @@ void merge_sort(int i, int j, int** aux, int* aux1, instance* inst) {
     }
 }
 
+
+/**
+ * Recursive function to sort the subsection a[i .. j] of both intersections
+ * and the intersectionsLength arrays
+ *
+ * @param i starting that defines the subsection to sort
+ * @param j end that defines the subsection to sort
+ * @param aux auxiliary array
+ * @param aux1 auxiliary array
+ * @param inst scp instance
+ *
+ */
+void merge_sort1(int i, int j, int** aux, int* aux1, int* aux2,  instance* inst) 
+{
+    int** a = inst->intersections;
+    int* a1 = inst->intersectionsLengths;
+    int* a2 = inst->constraintScores;
+
+    if (j <= i) 
+    {
+        return;     // the subsection is empty or a single element
+    }
+    int mid = (i + j) / 2;
+
+    // left sub-array is a[i .. mid]
+    // right sub-array is a[mid + 1 .. j]
+    merge_sort1(i, mid, aux, aux1, aux2, inst);     // sort the left sub-array recursively
+    merge_sort1(mid + 1, j, aux, aux1, aux2, inst);     // sort the right sub-array recursively
+    
+    int pointer_left = i;       // pointer_left points to the beginning of the left sub-array
+    int pointer_right = mid + 1;        // pointer_right points to the beginning of the right sub-array
+    int k;      // k is the loop counter
+
+    // we loop from i to j to fill each element of the final merged array
+    for (k = i; k <= j; k++) 
+    {
+        if (pointer_left == mid + 1) // left pointer has reached the limit
+        {  
+            aux[k] = a[pointer_right];
+            aux1[k]=a1[pointer_right];
+            aux2[k]=a2[pointer_right];
+            pointer_right++;
+        } else if (pointer_right == j + 1) {        // right pointer has reached the limit
+            aux[k] = a[pointer_left];
+            aux1[k] = a1[pointer_left];
+            aux2[k] = a2[pointer_left];
+            pointer_left++;
+        } else if (inst->reverse ? a2[pointer_right]<a2[pointer_left] : a2[pointer_right]>a2[pointer_left]) {        // pointer left points to smaller element
+            aux[k] = a[pointer_left];
+            aux1[k] = a1[pointer_left];
+            aux2[k] = a2[pointer_left];
+            pointer_left++;
+        } else {        // pointer right points to smaller element
+            aux[k] = a[pointer_right];
+            aux1[k] = a1[pointer_right];
+            aux2[k] = a2[pointer_right];
+            pointer_right++;
+        }
+    }
+
+    for (k = i; k <= j; k++) {      // copy the elements from aux[] to a[]
+        a[k] = aux[k];
+        a1[k] = aux1[k];
+        a2[k] = aux2[k];
+    }
+}
+
 /** Function to compare two constraints, it behaves differently based on the value of reverse.
  * If reverse is 0 (default) the function can be used to sort the constraints from short to long.
  * If reverse is 1 the function can be used to sort the constraints from long to short.
@@ -290,7 +401,7 @@ int compareIntersections(instance *inst, int i, int j)
 
 
 
-void purgeDuplicates(instance *inst)
+void purgeDuplicatesRepeatedFirst(instance *inst)
 {
     int **intersections = (int **)calloc(inst->numIntersections, sizeof(int *));
     int *intersectionsLen =(int*)calloc(inst->numIntersections, sizeof(int));
@@ -348,8 +459,57 @@ void purgeDuplicates(instance *inst)
     inst->intersectionsLengths = intersectionsLen;
     inst->intersections = intersections;
     inst->numIntersections = idxNew;
-
+    inst->repeatedNum = repeatedIdx;
 }
+
+void purgeDuplicates(instance *inst)
+{
+    int **intersections = (int **)calloc(inst->numIntersections, sizeof(int *));
+    int *intersectionsLen = (int*)calloc(inst->numIntersections, sizeof(int));
+    
+    if(inst->reverse==0)
+        inst->maxConstrLen = inst->intersectionsLengths[inst->numIntersections-1];
+    else
+        inst->maxConstrLen = inst->intersectionsLengths[0];
+    
+    printf("Longest constraint has %d variables\n", inst->maxConstrLen);
+    
+    int lastIn = 0; // index in the old array of the last constraint inserted.
+    int idxNew = 0; // index in the new array in which we want to add the next entry 
+    int nDup = 0;
+    
+    int repeating = 1;
+
+    intersections[idxNew] = inst->intersections[0]; 
+    intersectionsLen[idxNew++] = inst->intersectionsLengths[0];
+    //cycle on all the original intersections
+    for(int i=1; i<inst->numIntersections; i++)
+    {
+        //printf("i = %d\n", i);
+        while(i<inst->numIntersections && isEqual(inst, lastIn, i))
+        {
+            free(inst->intersections[i]);
+            nDup++;
+            i++;
+        }
+        if(i<inst->numIntersections)
+        {
+            repeating=1;
+            intersections[idxNew] = inst->intersections[i]; 
+            intersectionsLen[idxNew++] = inst->intersectionsLengths[i];
+            lastIn=i;
+        }    
+    }
+    printf("Found %d duplicates\n",nDup);
+    printf("remaining single constraint %d\n", idxNew);
+    free(inst->intersections);
+    free(inst->intersectionsLengths);
+    inst->intersectionsLengths = intersectionsLen;
+    inst->intersections = intersections;
+    inst->numIntersections = idxNew;
+    inst->repeatedNum = 0;
+}
+
 
 int isEqual(instance *inst, int i, int j)
 {

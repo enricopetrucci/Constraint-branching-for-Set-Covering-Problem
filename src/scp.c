@@ -269,6 +269,7 @@ double findBestBranchingConstraintLookAhead(int *n, double *x, double *pseudocos
 }
 
 
+
 /**
  * For each variable that is > 0 it updates the estimates for each of the constraints in which that variable appears.
  * It also computes in the same way the sum of the variables for each constrain in order to evaluate 
@@ -594,14 +595,22 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
     char str[80];
 
     // prepare logfile
-    // if (inst->branching == 0)
-    //     sprintf(str, "logfile_defaultBranchinglegacy.txt");
-    // else
-    //     sprintf(str, "logfile_constraintBranchinglegacy.txt");
-    // CPXsetlogfilename(env, str, "w");
+    if (inst->branching == 0)
+        sprintf(str, "logfile_defaultBranchinglegacy.txt");
+    else
+        sprintf(str, "logfile_constraintBranchinglegacy.txt");
+    CPXsetlogfilename(env, str, "w");
+
 
     // set callback
-    CPXsetbranchcallbackfunc(env, legacyBranchingCallback, inst);
+    int plotTree=0;
+    if(plotTree)
+    {
+        resetPlotTree(inst);
+        CPXsetbranchcallbackfunc(env, plotTreeCallback, inst);
+    }
+    else
+        CPXsetbranchcallbackfunc(env, legacyBranchingCallback, inst);
     if (inst->threads == 0)
         CPXgetnumcores(env, &inst->threads);
     CPXsetintparam(env, CPX_PARAM_THREADS, inst->threads);
@@ -619,7 +628,7 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
     if (inst->branching == 1)
     {
 
-        CPXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_PSEUDO);
+        //CPXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_PSEUDO);
         // Get the rows of the problem
         int nnz;
         int *izero = (int *)malloc(inst->num_rows * sizeof(int));
@@ -657,17 +666,79 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
         end = second();
         printf("Sorted intersections in %f up to now %f \n", end - start, end-inst->startTime);
         
-        start = second();
-        purgeDuplicates(inst);
-        end = second();
-        printf("Eliminated duplicates in %f. Remaining %d constraints up to now %f \n", end - start, inst->numIntersections, end-inst->startTime);
-
+        printf("repeatedFirst %d\n", inst->repeatedFirst);
+        if(inst->repeatedFirst==1)
+        {
+            start = second();
+            purgeDuplicatesRepeatedFirst(inst);
+            end = second();
+            printf("Eliminated duplicates in %f. Repeated brougth at the top. Remaining %d constraints up to now %f \n", end - start, inst->numIntersections, end-inst->startTime);
+        }
+        else
+        {
+            start = second();
+            purgeDuplicates(inst);
+            end = second();
+            printf("Eliminated duplicates in %f. Remaining %d constraints up to now %f \n", end - start, inst->numIntersections, end-inst->startTime);
+        }
+        
         start = second();
         populateVariableConstraintTable(inst);
         end = second();
         printf("Populated variable-constraint table in %f up to now %f \n", end - start, end-inst->startTime);
 
+        if(inst->sort)
+        {
+            start = second();
+            computeVariableFrequencies(indexes, nnz, inst);
+            end = second();
+            printf("computed variable frequencies in %f up to now %f \n", end - start, end-inst->startTime);
 
+            start = second();
+            computeConstraintScores(inst);
+            end = second();
+            printf("computed constraint score in %f up to now %f \n", end - start, end-inst->startTime);
+
+                
+            // FILE *f;
+            // f = fopen("ScoresConstr.txt", "w");
+            // fprint_array_int(f, inst->constraintScores, inst->numIntersections);
+            // fclose(f);        
+
+            // f = fopen("ScoresVar.txt", "w");
+            // fprint_array_int(f, inst->variableScores, inst->num_cols);
+            // fclose(f);        
+
+            start = second();
+            
+            // auxiliary arrays used in the merge sort, one for the intersections and one for their lengths
+            aux= (int **)calloc(inst->numIntersections, sizeof(int*));
+            aux1= (int *)calloc(inst->numIntersections, sizeof(int));
+            int *aux2= (int *)calloc(inst->numIntersections, sizeof(int));
+
+            merge_sort1(inst->repeatedNum, inst->numIntersections-1, aux, aux1, aux2, inst);
+            
+            
+            end = second();
+            printf("Sorted intersections wrt the score in %f up to now %f \n", end - start, end-inst->startTime);
+
+
+            // f = fopen("ScoresConstrSorted1.txt", "w");
+            // fprint_array_int_int2(f, inst->intersections, inst->intersectionsLengths, inst->numIntersections);
+            // fprint_array_int(f, inst->intersectionsLengths, inst->numIntersections);
+            // fprint_array_int(f, inst->constraintScores, inst->numIntersections);
+            // fclose(f);        
+
+            free(aux);
+            free(aux1);
+            free(aux2);
+        }
+
+            // FILE *f;
+            // f = fopen("ScoresConstrSorted1.txt", "w");
+            // fprint_array_int_int2(f, inst->intersections, inst->intersectionsLengths, inst->numIntersections);
+            // fprint_array_int(f, inst->intersectionsLengths, inst->numIntersections);
+            // fclose(f);        
 
         // allocate arrays only once for each thread to use inside the callback
 
@@ -684,10 +755,15 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
             inst->sum[i] = (double *)malloc(inst->numIntersections * sizeof(double));
         }
 
-        inst->values =(double *) malloc(inst->maxConstrLen * sizeof(double*));
+        inst->values =(double *) malloc(inst->maxConstrLen * sizeof(double));
+        inst->lu = (char *) malloc(inst->maxConstrLen * sizeof(char));
+        inst->bd =(double *) calloc(inst->maxConstrLen, sizeof(double));
+        
         for (int n = 0; n < inst->maxConstrLen; n++)
         {
             inst->values[n] = 1;
+            inst->lu[n] = 'U';
+
         }
 
         free(izero);
@@ -734,8 +810,6 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
 
         saveComputationResults(inst);
     }
-    
-
     
     printf("%d constraint branching\n%d default branching\n", inst->totalConstraintBranching, inst->totalVariableBranching);
     
@@ -787,7 +861,13 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
         free(inst->varPseudocostsUp);
         free(inst->sum);
         free(inst->values);
-
+        free(inst->bd);
+        free(inst->lu);
+        if (inst->sort)
+        {
+            free(inst->constraintScores);
+            free(inst->variableScores);
+        }
     }
     
     free(inst->solution);
@@ -819,11 +899,13 @@ void addBranchingChilds(CPXCENVptr env, void *cbdata, int wherefrom, double obj,
     char sense1 = 'E';
     char sense2 = 'G';
     int izero = 0;
-    
+    // print_array_int(inst->intersections[i], inst->intersectionsLengths[i]);
+    // print_array(inst->bd, inst->intersectionsLengths[i]);
+    // print_array_char(inst->lu, inst->intersectionsLengths[i]);
     /* We want to branch. */
     int child1, child2;
-
-    CPXbranchcallbackbranchconstraints(env, cbdata, wherefrom, 1, inst->intersectionsLengths[i], &rhs1, "E", &izero, inst->intersections[i], inst->values, obj, NULL, &child1);
+    CPXbranchcallbackbranchbds(env, cbdata, wherefrom, inst->intersectionsLengths[i], inst->intersections[i], inst->lu, inst->bd, obj, NULL, &child1);
+    //CPXbranchcallbackbranchconstraints(env, cbdata, wherefrom, 1, inst->intersectionsLengths[i], &rhs1, "E", &izero, inst->intersections[i], inst->values, obj, NULL, &child1);
     CPXbranchcallbackbranchconstraints(env, cbdata, wherefrom, 1, inst->intersectionsLengths[i], &rhs2, "G", &izero, inst->intersections[i], inst->values, obj, NULL, &child2);
 }
 
@@ -836,6 +918,7 @@ void addBranchingChilds(CPXCENVptr env, void *cbdata, int wherefrom, double obj,
 void saveComputationResults(instance *inst)
 {
     char fileName[1000];
+    char folder[1000];
     int length = strlen(inst->input_file);
     int start = 21;
     int end = length-3;
@@ -846,8 +929,17 @@ void saveComputationResults(instance *inst)
         input_file[i]=inst->input_file[i+start];
     }
     input_file[i]=0;
-    sprintf(fileName, "../results/%d_%d_%d_%.1f_%d/%s_%d_%d_%d_%.1f_%d_%d_%.0f.csv", inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead, input_file, inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead, inst->threads, inst->timelimit);
+    sprintf(folder, "../results/%d_%d_%d_%.1f_%d_%d_%d_%d_%d", inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead, inst->reverse, inst->repeatedFirst, inst->sort, inst->average);
+    sprintf(fileName, "../results/%d_%d_%d_%.1f_%d_%d_%d_%d_%d/%s_%d_%d_%d_%.1f_%d_%d_%.0f_%d_%d_%d_%d.csv", inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead, inst->reverse, inst->repeatedFirst, inst->sort, inst->average, input_file, inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead, inst->threads, inst->timelimit, inst->reverse, inst->repeatedFirst, inst->sort, inst->average);
+    
+    
     printf("Saving results in file %s\n", fileName);
+    // create folder if not present
+    struct stat st = {0};
+    if (stat(folder, &st) == -1) {
+        mkdir(folder, 0700);
+    }
+
     FILE *f;
     if( access( fileName, F_OK ) != -1 ) // file exists
     {
@@ -856,9 +948,9 @@ void saveComputationResults(instance *inst)
     else // file doesn't exist
     {
         f = fopen(fileName, "w");
-        fprintf(f, "Instance,Time,Best Int.,Best Val.,MIP Gap,Nodes,Nodes Left,Constraint Branching,Varaible Branching,Seed,Threads,Callback,Branching,constraintBranchVer,delta,lookAhead\n"); 
+        fprintf(f, "Instance,Time,Best Int.,Best Val.,MIP Gap,Nodes,Nodes Left,Constraint Branching,Varaible Branching,Seed,Threads,Callback,Branching,constraintBranchVer,delta,lookAhead,Reverse,RepeatedFirst,Sort,Average,PreprocessingPercentage\n"); 
     }
-    fprintf(f, "%s,%f,%f,%f,%f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.1f,%d\n",inst->input_file, inst->executionTime, inst->bestInt, inst->bestVal, inst->MIPgap, inst->exploredNodes, inst->remainingNodes, inst->totalConstraintBranching, inst->totalVariableBranching, inst->seed, inst->threads, inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead); 
+    fprintf(f, "%s,%f,%f,%f,%f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.1f,%d,%d,%d,%d,%d,%f\n",inst->input_file, inst->executionTime, inst->bestInt, inst->bestVal, inst->MIPgap, inst->exploredNodes, inst->remainingNodes, inst->totalConstraintBranching, inst->totalVariableBranching, inst->seed, inst->threads, inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead, inst->reverse, inst->repeatedFirst, inst->sort, inst->average,100 * inst->prepTime / inst->executionTime); 
     fclose(f);
 }
     
@@ -931,4 +1023,106 @@ double findBestBranchingConstraint(int *n, double *x, double *pseudocostDown, do
     free(estimateScoreUp);
     free(constraintScorePrevision);
     return (Max);
+}
+
+
+
+/** 
+ * Attempt for plotting the tree structure of the decision tree
+ * 
+ * @param type specifies the type of branch CPX_TYPE_VAR(0): variable branch. CPX_TYPE_SOS1(1): SOS1 branch. CPX_TYPE_SOS2(2): SOS2 branch. CPX_TYPE_ANY('A'): multiple bound changes or constraints will be used for branching
+ * @param sos Specifies the special ordered set
+ * @param nodecnt specifies the number og nodes cplex will create
+ * @param bdcnt number of bounds changes defined in indices, lu, bd 
+ * @param nodebeg discriminate in indices, lu, bd the changes in the different nodes
+ * @param indices index of the variable
+ * @param lu specifies if we add a lower or upper bound for the variable
+ * @param bd specidies the new value of the bound
+ * @param nodeest contains the estimations for the integer objective-function value the created nodes
+ * @param useraction_p specifies if the branching was set by the user or if the one to use is the default one
+ * 
+ */
+int plotTreeCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *cbhandle, int type, int sos, int nodecnt, int bdcnt, const int *nodebeg,
+                            const int *indices, const char *lu, const double *bd, const double *nodeest, int *useraction_p)
+{
+    double start = second();
+    instance *inst = (instance *)cbhandle; // casting of cbhandle
+    int threadNum;
+    CPXgetcallbackinfo(env, cbdata, wherefrom, CPX_CALLBACK_INFO_MY_THREAD_NUM, &threadNum);
+    int node;
+    CPXgetcallbackinfo(env, cbdata, wherefrom, CPX_CALLBACK_INFO_NODE_COUNT, &node);
+    printf("node = %d\n", node);
+
+    // int indices0[bdcnt];
+    // int indices1[bdcnt];
+
+    // for(int i=0; i<bdcnt; i++)
+    // {
+    //     if(i<nodebeg[1])
+    //     {
+            
+    //     }
+    //     else
+    //     {
+
+    //     }
+
+    // }
+    // printf("bdcnt = %d\n", bdcnt);
+    // print_array_int(nodebeg, nodecnt);
+    // print_array_char(lu, bdcnt);
+    int seqnum0;
+    int seqnum1;
+    if(nodecnt==2)
+    {
+        CPXbranchcallbackbranchbds( env, cbdata, wherefrom, nodebeg[1], &(indices[nodebeg[0]]), &(lu[nodebeg[0]]), &(bd[nodebeg[0]]), nodeest[0], NULL, &seqnum0);
+        CPXbranchcallbackbranchbds( env, cbdata, wherefrom, bdcnt-nodebeg[1], &(indices[nodebeg[1]]), &(lu[nodebeg[1]]), &(bd[nodebeg[1]]) , nodeest[1], NULL, &seqnum1);
+        printf("node0 = %d, node1 = %d\n", seqnum0,seqnum1);
+        *useraction_p = CPX_CALLBACK_SET;
+    
+        char str[1000];
+        int length = strlen(inst->input_file);
+        int start = 21;
+        int end = length-3;
+        char input_file[100];
+        int i=0;
+
+        for(; i<end-start; i++)
+        {
+            input_file[i]=inst->input_file[i+start];
+        }
+
+        input_file[i]=0;
+        sprintf(str, "../TreePlots/tree%s.txt", input_file);
+        FILE *f;
+        f = fopen(str, "a");
+        fprintf(f,"%d %d \n",node, seqnum0);
+        
+        fprintf(f,"%d %d \n",node, seqnum1);
+        fclose(f);
+    }
+    return 0;
+}
+
+
+
+void resetPlotTree(instance* inst)
+{
+    char str[1000];
+	int length = strlen(inst->input_file);
+	int start = 21;
+	int end = length-3;
+	char input_file[100];
+	int i=0;
+
+	for(; i<end-start; i++)
+	{
+		input_file[i]=inst->input_file[i+start];
+	}
+
+	input_file[i]=0;
+	sprintf(str, "../TreePlots/tree%s.txt", input_file);
+	FILE *f;
+	f = fopen(str, "w");
+	fclose(f);
 }
