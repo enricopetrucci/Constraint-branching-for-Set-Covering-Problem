@@ -13,8 +13,9 @@ void populateIntersectionsOf2(int* izero, int* indexes, int nnz, instance* inst)
 
 void computeVariableFrequencies(int *indexes, int nnz, instance *inst);
 
-void computeConstraintScores(instance *inst);
+void computeConstraintScoresReducedCosts(instance *inst, double* reducedCosts);
 
+void computeConstraintScoresFreq(instance *inst);
 
 void populateIntersectionsOf2Original(int *izero, int *indexes, int nnz, instance *inst);
 
@@ -34,6 +35,7 @@ void merge_sort(int i, int j, int** aux, int* aux1, instance* inst);
 
 void merge_sort1(int i, int j, int** aux, int* aux1, int* aux2,  instance* inst); 
 
+void merge_sort2(int i, int j, int** aux, int* aux1, double * aux2,  instance* inst);
 
 int compareIntersections(instance *inst, int i, int j);
 

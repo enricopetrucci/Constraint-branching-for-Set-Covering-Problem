@@ -108,6 +108,8 @@ typedef struct {
 	int* variableScores;
 	int* constraintScores;
 
+	double* constraintScoresD;
+
 	int repeatedNum;
 	int repeatedFirst;
 	int reverse;

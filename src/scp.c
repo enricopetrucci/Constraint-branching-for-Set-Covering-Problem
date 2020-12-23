@@ -89,6 +89,7 @@ int legacyBranchingCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *c
                             const int *indices, const char *lu, const double *bd, const double *nodeest, int *useraction_p)
 {
     double start = second();
+    double end;
     instance *inst = (instance *)cbhandle; // casting of cbhandle
     int threadNum;
     CPXgetcallbackinfo(env, cbdata, wherefrom, CPX_CALLBACK_INFO_MY_THREAD_NUM, &threadNum);
@@ -97,7 +98,7 @@ int legacyBranchingCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *c
     if (inst->branching == 0)
     {
         inst->defaultBranching[threadNum]++;
-        double end = second();
+        end = second();
         inst->timeInCallback[threadNum] += end - start;
         return 0;
     }
@@ -106,12 +107,78 @@ int legacyBranchingCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *c
         // only if CPLEX proposes a branching that generates 2 new nodes.
         if (nodecnt == 2)
         {
+            int node;
+            CPXgetcallbackinfo(env, cbdata, wherefrom, CPX_CALLBACK_INFO_NODE_COUNT, &node);
+            // sort based on the reduced costs
+            if(node==0 && inst->sort==2)
+            {
+                CPXLPptr nodelp;
+                CPXgetcallbacknodelp (env, cbdata, wherefrom, &nodelp);
+                start = second();
+
+                
+                double* reducedCosts = (double *)calloc(inst->num_cols, sizeof(double));
+                
+                
+                CPXgetdj (env, nodelp, reducedCosts, 0, inst->num_cols-1);
+                
+                FILE *f;
+                f = fopen("ReducedCosts.txt", "w");
+                //fprint_array_int_int2(f, inst->intersections, inst->intersectionsLengths, inst->numIntersections);
+                fprint_array(f, reducedCosts, inst->num_cols);
+                fclose(f);                    
+             
+                end = second();
+
+                printf("Retrieved reduced costs in %f up to now %f \n", end - start, end-inst->startTime);
+
+                start = second();
+                computeConstraintScoresReducedCosts(inst, reducedCosts);
+                end = second();
+                
+                printf("computed constraint score in %f up to now %f \n", end - start, end-inst->startTime);
+
+                    
+                f = fopen("ScoresConstr.txt", "w");
+                fprint_array(f, inst->constraintScoresD, inst->numIntersections);
+                fclose(f);        
+
+                // f = fopen("ScoresVar.txt", "w");
+                // fprint_array_int(f, inst->variableScores, inst->num_cols);
+                // fclose(f);        
+
+                start = second();
+                
+                // auxiliary arrays used in the merge sort, one for the intersections and one for their lengths
+                int** aux= (int **)calloc(inst->numIntersections, sizeof(int*));
+                int *aux1= (int *)calloc(inst->numIntersections, sizeof(int));
+                double *aux2= (double *)calloc(inst->numIntersections, sizeof(double));
+
+                
+                merge_sort2(inst->repeatedNum, inst->numIntersections-1, aux, aux1, aux2, inst);
+                
+                
+                end = second();
+                printf("Sorted intersections wrt the score in %f up to now %f \n", end - start, end-inst->startTime);
+
+
+                f = fopen("ScoresConstrSorted1.txt", "w");
+                // fprint_array_int_int2(f, inst->intersections, inst->intersectionsLengths, inst->numIntersections);
+                // fprint_array_int(f, inst->intersectionsLengths, inst->numIntersections);
+                fprint_array(f, inst->constraintScoresD, inst->numIntersections);
+                fclose(f);        
+
+                free(aux);
+                free(aux1);
+                free(aux2);
+                free(reducedCosts);
+
+                
+            }
             int foundConstraint = 0;
             int i = -1;
             double obj;
 
-            // int node;
-            // CPXgetcallbackinfo(env, cbdata, wherefrom, CPX_CALLBACK_INFO_NODE_COUNT, &node);
             double *x=inst->xs[threadNum];
             // get pseudocosts on the variables computed by CPLEX
             double *pseudocostDown = inst->varPseudocostsDown[threadNum];
@@ -168,14 +235,14 @@ int legacyBranchingCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *c
             {
                 inst->defaultBranching[threadNum]++;
             }
-            double end = second();
+            end = second();
             inst->timeInCallback[threadNum] += end - start;
             return 0;
         }
         else
         {
             inst->defaultBranching[threadNum]++;
-            double end = second();
+            end = second();
             inst->timeInCallback[threadNum] += end - start;
             return 0;
         }
@@ -687,7 +754,7 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
         end = second();
         printf("Populated variable-constraint table in %f up to now %f \n", end - start, end-inst->startTime);
 
-        if(inst->sort)
+        if(inst->sort==1)
         {
             start = second();
             computeVariableFrequencies(indexes, nnz, inst);
@@ -695,7 +762,7 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
             printf("computed variable frequencies in %f up to now %f \n", end - start, end-inst->startTime);
 
             start = second();
-            computeConstraintScores(inst);
+            computeConstraintScoresFreq(inst);
             end = second();
             printf("computed constraint score in %f up to now %f \n", end - start, end-inst->startTime);
 
@@ -733,7 +800,33 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
             free(aux1);
             free(aux2);
         }
+        // if(inst->sort==2)
+        // {
+        //     start = second();
+        //     CPXsetlongparam(env, CPXPARAM_MIP_Limits_Nodes, 0);
+        //     if (CPXmipopt(env, lp)) 
+        //         print_error(" Problems on CPXmipopt");
+            
+        //     end = second();
+        //     printf("Root node solved in %f up to now %f\n", end - start, end-inst->startTime);
+            
+        //     double* reducedCosts = (double *)calloc(inst->num_cols, sizeof(double));
+            
+        //     CPXgetdj (env, lp, reducedCosts, 0, inst->num_cols-1);
+            
+        //     FILE *f;
+            
+        //     f = fopen("ReducedCosts.txt", "w");
+        //     //fprint_array_int_int2(f, inst->intersections, inst->intersectionsLengths, inst->numIntersections);
+        //     fprint_array(f, reducedCosts, inst->num_cols);
 
+        //     fclose(f);                    
+        //     CPXsetlongparam(env, CPXPARAM_MIP_Limits_Nodes, 9223372036800000000);
+            
+
+        // }
+
+        
             // FILE *f;
             // f = fopen("ScoresConstrSorted1.txt", "w");
             // fprint_array_int_int2(f, inst->intersections, inst->intersectionsLengths, inst->numIntersections);
@@ -863,10 +956,14 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
         free(inst->values);
         free(inst->bd);
         free(inst->lu);
-        if (inst->sort)
+        if (inst->sort==1)
         {
             free(inst->constraintScores);
             free(inst->variableScores);
+        }
+        if(inst->sort==2)
+        {
+            free(inst->constraintScoresD);
         }
     }
     
