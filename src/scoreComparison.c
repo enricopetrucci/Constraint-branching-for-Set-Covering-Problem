@@ -3,6 +3,7 @@
 #include "scoreComparison.h"
 
 
+// main function
 int scoreComparison(instance *inst)
 {
     int error; // error = 0 -> no error
@@ -348,12 +349,8 @@ void computeConstraintsProductScores(CPXENVptr env, CPXLPptr lp, instance* inst,
                 values[n]=1;
             }
             
-            // CPXreadcopyprob(env, lp, inst->input_file, "LP");
-            // CPXchgctype(env, lp, inst->num_cols, varInd, ctype);
             CPXaddrows(env, lp, 0, 1, inst->intersectionsLengths[i], &rhs1, "E", &izero, inst->intersections[i], values, NULL, &name1);
-            // CPXchgprobtype(env, lp, 0);
-            //CPXwriteprob(env, lp, "downModel.lp", NULL);
-
+            
             branchingConstraint = CPXgetnumrows(env, lp)-1;
             CPXcopybase (env, lp, cstat, rstat);
             if (CPXlpopt(env, lp)) // solve the problem
@@ -369,11 +366,7 @@ void computeConstraintsProductScores(CPXENVptr env, CPXLPptr lp, instance* inst,
     
             CPXdelrows(env, lp, branchingConstraint, branchingConstraint);
 
-            // CPXreadcopyprob(env, lp, inst->input_file, "LP");
-            // CPXchgctype(env, lp, inst->num_cols, varInd, ctype);
             CPXaddrows(env, lp, 0, 1, inst->intersectionsLengths[i], &rhs2, "G", &izero, inst->intersections[i], values, NULL, &name2);
-            // CPXchgprobtype(env, lp, 0);
-            //CPXwriteprob(env, lp, "upModel.lp", NULL);
 
             branchingConstraint = CPXgetnumrows(env, lp)-1;
             CPXcopybase (env, lp, cstat, rstat);

@@ -118,6 +118,10 @@ typedef struct {
 	int sort;
 
 	int lookAhead;
+
+	int* constraintBranchingDepth;
+	int* variableBranchingDepth;
+	CPXENVptr* envs; 													//CPLEX enviromnments, one per thread used for strong constraint branching
     
 } instance;
 
@@ -149,5 +153,10 @@ int plotTreeCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *cbhandle
 
 
 void resetPlotTree(instance *inst);
+
+int legacyBranchingCallbackStrong(CPXCENVptr env, void *cbdata, int wherefrom, void *cbhandle, int type, int sos, int nodecnt, int bdcnt, const int *nodebeg,
+                            const int *indices, const char *lu, const double *bd, const double *nodeest, int *useraction_p);
+
+void prepareBranchingConstraints(CPXCENVptr env, CPXLPptr lp, instance *inst);
 
 #endif   /* scp_H_ */

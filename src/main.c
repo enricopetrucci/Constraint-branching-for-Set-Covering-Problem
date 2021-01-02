@@ -109,15 +109,29 @@ void parse_command_line(int argc, char** argv, instance* inst)
 	{
 		printf("Using legacy callbacks\n");
 	}
-	if(inst->branching==0)
+	if(inst->branching!=1)
 	{
-		printf("Using standard branching\n");
 		inst->constraintBranchVer = 0;
-		inst->delta = 0;
 		inst->lookAhead = 0;
 		inst->reverse = 0;
+		inst->repeatedFirst = 0;
 		inst->sort = 0;
 		inst->average = 0;
+		switch(inst->branching)
+		{
+			case 0:
+				printf("CPLEX default\n");
+				inst->delta = 0;
+		    	break;
+			case 2:
+				printf("CPLEX default strong branching\n");
+				inst->delta = 0;
+				break;
+			case 3:
+				printf("Constraint branching + strong branching\n");
+				inst->delta = 1;
+				break;
+		}
 	}
 	else
 	{
@@ -168,8 +182,5 @@ void parse_command_line(int argc, char** argv, instance* inst)
 		{
 			printf("from lower to higher\n");
 		}
-		
-
 	}
-
 }
