@@ -150,6 +150,15 @@ void parse_command_line(int argc, char** argv, instance* inst)
 			case 3:
 				printf("Using lookAhead during the fractionlity computation\n");
 				break;
+			case 4:
+				printf("strong branching only on constraints containing variable that CPLEX suggests\n");
+				inst->lookAhead = 0;
+				inst->reverse = 0;
+				inst->repeatedFirst = 0;
+				inst->sort = 0;
+				inst->average = 0;
+				inst->delta = 1;
+				break;
 
 		}
   	    if(inst->constraintBranchVer!=0 && inst->constraintBranchVer!=3)

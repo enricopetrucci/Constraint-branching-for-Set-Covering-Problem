@@ -113,18 +113,13 @@ int scoreComparison(instance *inst)
     // end = second();
     // printf("Found %d constraint intersections in %f\n", inst->numIntersections, end-start);
 
-    double* constraintScorePrevision = (double *) calloc(inst->numIntersections, sizeof(double));
-    double* estimateScoreDown = (double *) calloc(inst->numIntersections, sizeof(double));
-    double* estimateScoreUp = (double *) calloc(inst->numIntersections, sizeof(double));
-
-    computePrevisionConstraintsScores(inst, rootSolution, pseudocostDown, pseudocostUp, constraintScorePrevision, estimateScoreDown, estimateScoreUp, epsilon, 0);
-
-    f = fopen("ScoresEstimateConstraint.txt", "w");
-    for(int i=0; i < inst->numIntersections; i++)
-    {
-        fprintf(f, "constraint = %d, score = %f, estimateScoreDown=%f, estimateScoreUp=%f\n", i, constraintScorePrevision[i], estimateScoreDown[i], estimateScoreUp[i]);
-    }
-    fclose(f);
+    
+    // f = fopen("ScoresEstimateConstraint.txt", "w");
+    // for(int i=0; i < inst->numIntersections; i++)
+    // {
+    //     fprintf(f, "constraint = %d, score = %f, estimateScoreDown=%f, estimateScoreUp=%f\n", i, constraintScorePrevision[i], estimateScoreDown[i], estimateScoreUp[i]);
+    // }
+    // fclose(f);
     
 
     double* productScoreConstraints = (double *) calloc(inst->numIntersections, sizeof(double));
@@ -169,46 +164,74 @@ int scoreComparison(instance *inst)
     
     printf("MaxVarScore = %f, MaxConsScore = %f\n", MaxVarScore, MaxConsScore);
 
+
+    double* constraintScorePrevision = (double *) calloc(inst->numIntersections, sizeof(double));
+    double* estimateScoreDown = (double *) calloc(inst->numIntersections, sizeof(double));
+    double* estimateScoreUp = (double *) calloc(inst->numIntersections, sizeof(double));
+
+    computePrevisionConstraintsScores(inst, rootSolution, pseudocostDown, pseudocostUp, constraintScorePrevision, estimateScoreDown, estimateScoreUp, epsilon, 0);
+
     double MSEScore = 0;
     double MSEScoreDown = 0;
     double MSEScoreUp = 0;
-    
+    double maxScore = 0;
+
     for(int i = 0; i<inst->numIntersections; i++)
     {
+        if(constraintScorePrevision[i]>maxScore)
+        {
+            maxScore = constraintScorePrevision[i];
+        }
         MSEScore += pow(productScoreConstraints[i]-constraintScorePrevision[i], 2);
         MSEScoreDown += pow(scoreDown[i]-estimateScoreDown[i], 2);
         MSEScoreUp += pow(scoreUp[i]-estimateScoreUp[i], 2);
     }
+
     printf("Policy: Min. MSEScore = %f, MSEScoreDown = %f, MSEScoreUp = %f\n", MSEScore/inst->numIntersections, MSEScoreDown/inst->numIntersections, MSEScoreUp/inst->numIntersections);
 
     computePrevisionConstraintsScores(inst, rootSolution, pseudocostDown, pseudocostUp, constraintScorePrevision, estimateScoreDown, estimateScoreUp, epsilon, 1);
 
-    MSEScore = 0;
-    MSEScoreDown = 0;
-    MSEScoreUp = 0;
-    
+    double MSEScore1 = 0;
+    double MSEScoreDown1 = 0;
+    double MSEScoreUp1 = 0;
+    double maxScore1 = 0;
+
     for(int i = 0; i<inst->numIntersections; i++)
     {
-        MSEScore += pow(productScoreConstraints[i]-constraintScorePrevision[i], 2);
-        MSEScoreDown += pow(scoreDown[i]-estimateScoreDown[i], 2);
-        MSEScoreUp += pow(scoreUp[i]-estimateScoreUp[i], 2);
+        if(constraintScorePrevision[i]>maxScore1)
+        {
+            maxScore1 = constraintScorePrevision[i];
+        }
+        MSEScore1 += pow(productScoreConstraints[i]-constraintScorePrevision[i], 2);
+        MSEScoreDown1 += pow(scoreDown[i]-estimateScoreDown[i], 2);
+        MSEScoreUp1 += pow(scoreUp[i]-estimateScoreUp[i], 2);
     }
-    printf("Policy: Max. MSEScore = %f, MSEScoreDown = %f, MSEScoreUp = %f\n", MSEScore/inst->numIntersections, MSEScoreDown/inst->numIntersections, MSEScoreUp/inst->numIntersections);
+
+    printf("Policy: Max. MSEScore = %f, MSEScoreDown = %f, MSEScoreUp = %f\n", MSEScore1/inst->numIntersections, MSEScoreDown1/inst->numIntersections, MSEScoreUp1/inst->numIntersections);
 
     computePrevisionConstraintsScores(inst, rootSolution, pseudocostDown, pseudocostUp, constraintScorePrevision, estimateScoreDown, estimateScoreUp, epsilon, 2);
 
-    MSEScore = 0;
-    MSEScoreDown = 0;
-    MSEScoreUp = 0;
-    
+    double MSEScore2 = 0;
+    double MSEScoreDown2 = 0;
+    double MSEScoreUp2 = 0;
+    double maxScore2 = 0;
+
     for(int i = 0; i<inst->numIntersections; i++)
     {
-        MSEScore += pow(productScoreConstraints[i]-constraintScorePrevision[i], 2);
-        MSEScoreDown += pow(scoreDown[i]-estimateScoreDown[i], 2);
-        MSEScoreUp += pow(scoreUp[i]-estimateScoreUp[i], 2);
+        if(constraintScorePrevision[i]>maxScore2)
+        {
+            maxScore2 = constraintScorePrevision[i];
+        }
+        MSEScore2 += pow(productScoreConstraints[i]-constraintScorePrevision[i], 2);
+        MSEScoreDown2 += pow(scoreDown[i]-estimateScoreDown[i], 2);
+        MSEScoreUp2 += pow(scoreUp[i]-estimateScoreUp[i], 2);
     }
-    printf("Policy: Max. MSEScore = %f, MSEScoreDown = %f, MSEScoreUp = %f\n", MSEScore/inst->numIntersections, MSEScoreDown/inst->numIntersections, MSEScoreUp/inst->numIntersections);
 
+    printf("Policy: Max. MSEScore = %f, MSEScoreDown = %f, MSEScoreUp = %f\n", MSEScore2/inst->numIntersections, MSEScoreDown2/inst->numIntersections, MSEScoreUp2/inst->numIntersections);
+    
+    
+
+    saveResultsScores(inst, MaxVarScore, MaxConsScore, maxScore, MSEScore/inst->numIntersections, MSEScoreDown/inst->numIntersections, MSEScoreUp/inst->numIntersections, maxScore1, MSEScore1/inst->numIntersections, MSEScoreDown1/inst->numIntersections, MSEScoreUp1/inst->numIntersections, maxScore2, MSEScore2/inst->numIntersections, MSEScoreDown2/inst->numIntersections, MSEScoreUp2/inst->numIntersections);
 
     // free and close CPLEX model
     CPXfreeprob(env, &lp);
@@ -494,4 +517,38 @@ void computePrevisionConstraintsScores(instance* inst, double* rootSolution, dou
         }
     }
 }
-    
+
+
+/**
+ * Save the details of the computations in a .csv file
+ * @param inst instance of the scp
+ * 
+ */
+
+void saveResultsScores(instance *inst, double VariableProductScore, double BranchingProductScore, double BranchingEstimateFromPseudoCosts, double MSEScore, double MSEScoreDown, double MSEScoreUp, double BranchingEstimateFromPseudoCosts1, double MSEScore1, double MSEScoreDown1, double MSEScoreUp1, double BranchingEstimateFromPseudoCosts2, double MSEScore2, double MSEScoreDown2, double MSEScoreUp2)
+{
+    char fileName[1000];
+    char folder[1000];
+    sprintf(folder, "../results/Scores");
+    sprintf(fileName, "../results/Scores/Scores.csv");
+   
+    printf("Saving results in file %s\n", fileName);
+    // create folder if not present
+    struct stat st = {0};
+    if (stat(folder, &st) == -1) {
+        mkdir(folder, 0700);
+    }
+
+    FILE *f;
+    if( access( fileName, F_OK ) != -1 ) // file exists
+    {
+        f = fopen(fileName, "a"); 
+    }
+    else // file doesn't exist
+    {
+        f = fopen(fileName, "w");
+        fprintf(f, "Instance,Seed,VariableProductScore,BranchingProductScore,BranchingEstimateFromPseudoCosts,MSEScore,MSEScoreDown,MSEScoreUp,BranchingEstimateFromPseudoCosts1,MSEScore1,MSEScoreDown1,MSEScoreUp1,BranchingEstimateFromPseudoCosts2,MSEScore2,MSEScoreDown2,MSEScoreUp2\n"); 
+    }
+    fprintf(f, "%s,%d,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n",inst->input_file, inst->seed, VariableProductScore, BranchingProductScore, BranchingEstimateFromPseudoCosts, MSEScore, MSEScoreDown, MSEScoreUp, BranchingEstimateFromPseudoCosts1, MSEScore1, MSEScoreDown1, MSEScoreUp1, BranchingEstimateFromPseudoCosts2, MSEScore2, MSEScoreDown2, MSEScoreUp2); 
+    fclose(f);
+}

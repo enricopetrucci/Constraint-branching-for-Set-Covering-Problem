@@ -121,8 +121,16 @@ typedef struct {
 
 	int* constraintBranchingDepth;
 	int* variableBranchingDepth;
-	CPXENVptr* envs; 													//CPLEX enviromnments, one per thread used for strong constraint branching
-    
+	CPXENVptr* envs;													//CPLEX enviromnments, one per thread used for strong constraint branching
+    CPXLPptr* lps;
+	int** cstats;
+	int** rstats;
+	int* cstatDims;
+	int* rstatDims;
+	
+	double** ogBd;
+	char** ogLu;
+	int** ogIndices;
 } instance;
 
 // functions to compute the solutions to the TSP using the CPLEX library
@@ -137,6 +145,8 @@ double findBestBranchingConstraintFracVar(int *n, double* x, double* pseudocostD
 double findBestBranchingConstraintFracVarLookAhead(int *n, double *x, double *pseudocostDown, double *pseudocostUp, instance *inst, int threadNum);
 
 double findBestBranchingConstraintLookAhead(int *n, double *x, double *pseudocostDown, double *pseudocostUp, instance *inst);
+
+double findBestBranchingConstraintStrongContVar(CPXCENVptr env, void *cbdata, int wherefrom, int *n, int bestVar, int threadNum, double obj, instance *inst);
 
 void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance* inst);
 
@@ -158,5 +168,14 @@ int legacyBranchingCallbackStrong(CPXCENVptr env, void *cbdata, int wherefrom, v
                             const int *indices, const char *lu, const double *bd, const double *nodeest, int *useraction_p);
 
 void prepareBranchingConstraints(CPXCENVptr env, CPXLPptr lp, instance *inst);
+
+void sortIntersectionWRTreducedCosts(CPXCENVptr env, void *cbdata, int wherefrom, instance *inst);
+
+double computeStrongBranchingOnConstraint(instance* inst, double obj, int* cstat, int* rstat, int ogNumCols, int threadNum, int i);
+
+void getBase(CPXCENVptr env, CPXLPptr lp, instance* inst, int threadNum, int cur_numcols, int cur_numrows);
+
+double computeVariableProductScore(instance* inst, double* rootSolution, double obj, int threadNum, int bdcnt, const int *nodebeg, const int* indices, const char *lu, const double *bd);
+
 
 #endif   /* scp_H_ */
