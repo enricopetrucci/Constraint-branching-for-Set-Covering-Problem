@@ -111,7 +111,6 @@ void parse_command_line(int argc, char** argv, instance* inst)
 	}
 	if(inst->branching!=1)
 	{
-		inst->constraintBranchVer = 0;
 		inst->lookAhead = 0;
 		inst->reverse = 0;
 		inst->repeatedFirst = 0;
@@ -122,10 +121,12 @@ void parse_command_line(int argc, char** argv, instance* inst)
 			case 0:
 				printf("CPLEX default\n");
 				inst->delta = 0;
+				inst->constraintBranchVer = 0;
 		    	break;
 			case 2:
 				printf("CPLEX default strong branching\n");
 				inst->delta = 0;
+				inst->constraintBranchVer = 0;
 				break;
 			case 3:
 				printf("Constraint branching + strong branching\n");

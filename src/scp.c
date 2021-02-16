@@ -53,7 +53,9 @@ int scpopt(instance *inst)
     inst->num_cols = CPXgetnumcols(env, lp);
     inst->num_rows = CPXgetnumrows(env, lp);
 
+    printf(" & %d & %d \n", inst->num_rows, inst->num_cols);
 
+    printf("break");
     if (inst->callback == 0)
     {
         solveUsingGenericCallback(env, lp, inst);
@@ -170,11 +172,16 @@ int legacyBranchingCallback(CPXCENVptr env, void *cbdata, int wherefrom, void *c
                     Max = findBestBranchingConstraintStrongContVar(env, cbdata, wherefrom, &i, indices[0], threadNum, obj, inst);
                     break;
                 }
+                case 5:
+                {
+                    Max = findBestBranchingConstraintStrongContVar(env, cbdata, wherefrom, &i, indices[0], threadNum, obj, inst);
+                    break;
+                }
             }
             
             double varProductScore;
 
-            if(inst->constraintBranchVer == 4)
+            if(inst->constraintBranchVer >= 4)
             {
                 varProductScore = computeVariableProductScore(inst, x, obj, threadNum, bdcnt, nodebeg, indices, lu, bd);
             }
@@ -677,8 +684,8 @@ double findBestBranchingConstraintStrongContVar(CPXCENVptr env, void *cbdata ,in
     int constCounter = constraintCounter[bestVar]; 
     //printf("Number of constraint containing the variable = %d\n",constCounter);
     // cycle the constraints that contain the best variable
-    int onlyVarConstraints = 1;
-    if(onlyVarConstraints == 1)
+    int useConstraintsContainingVar = 1;
+    if(useConstraintsContainingVar == 1)
     {
         for (int i = 0; i < constCounter; i++)
         {
@@ -739,8 +746,6 @@ double findBestBranchingConstraintStrongContVar(CPXCENVptr env, void *cbdata ,in
             }       
         }
     }
-    
-
     *n = best_i;
     return (Max);
 }
@@ -781,9 +786,12 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
         CPXsetbranchcallbackfunc(env, legacyBranchingCallback, inst);
         //CPXsetintparam (env, CPXPARAM_Preprocessing_Presolve, CPX_OFF);
         
-        // CPXsetintparam (env, CPXPARAM_MIP_Limits_StrongCand, CPX_BIGINT);
-        // CPXsetlongparam (env, CPXPARAM_MIP_Limits_StrongIt, CPX_BIGLONG);
-        // CPXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_STRONG);
+        if(inst->constraintBranchVer == 5)
+        {
+            CPXsetintparam (env, CPXPARAM_MIP_Limits_StrongCand, CPX_BIGINT);
+            CPXsetlongparam (env, CPXPARAM_MIP_Limits_StrongIt, CPX_BIGLONG);
+            CPXsetintparam(env, CPXPARAM_MIP_Strategy_VariableSelect, CPX_VARSEL_STRONG);
+        }
     }
     else
     {
@@ -810,14 +818,16 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
     if (inst->branching == 1 || inst->branching == 3)
         prepareBranchingConstraints(env, lp, inst);
     
+  
     // if(inst->branching == 1)
     // {
     //     inst->constraintBranchingDepth = (int*)calloc(100, sizeof(int));
     //     inst->variableBranchingDepth = (int*)calloc(100, sizeof(int));
     // }
-
-    if (inst->branching == 3 || (inst->branching == 1 && inst->constraintBranchVer == 4))
+  
+    if (inst->branching == 3 || inst->branching == 2|| (inst->branching == 1 && inst->constraintBranchVer >= 4))
     {
+
         int error;
         inst->envs = (CPXENVptr*)malloc(inst->threads * sizeof(CPXENVptr*));
         inst->lps = (CPXLPptr*)malloc(inst->threads * sizeof(CPXLPptr*));
@@ -829,6 +839,7 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
         inst->ogBd = (double**)malloc(inst->threads * sizeof(double*));
         inst->ogIndices = (int**)malloc(inst->threads * sizeof(int*));
         inst->ogLu = (char**)malloc(inst->threads * sizeof(char*));
+        
         
         for (int i=0; i<inst->threads; i++)
         {
@@ -847,7 +858,16 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
             {
                 inst->ogIndices[i][k] = k;
                 inst->ogLu[i][k] = 'U';
-            }
+            } 
+        }
+
+        inst->nInfo = (nodeInfo**)malloc(inst->threads * sizeof(nodeInfo*));
+	    inst->nInfoLengths = (int* )malloc(inst->threads * sizeof(int));
+	    inst->nInfoIndex = (int* )calloc(inst->threads, sizeof(int));
+        for (int i=0; i<inst->threads; i++)
+        {
+            inst->nInfoLengths[i] = 1000;
+            inst->nInfo[i] = (nodeInfo*) malloc(inst->nInfoLengths[i] * sizeof(nodeInfo));
         }
     }
     
@@ -919,8 +939,18 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
     //     fprint_array_int(f, inst->constraintBranchingDepth, 100);
     // }    
     
-    if (inst->branching == 3 || (inst->branching == 1 && inst->constraintBranchVer == 4))
+    if (inst->branching == 3 || inst->branching == 2 || (inst->branching == 1 && inst->constraintBranchVer >= 4))
     {
+
+        saveNodeInfoToFile(inst);
+        for(int i=0; i<inst->threads; i++)
+        {
+            free(inst->nInfo[i]);
+        }
+        free(inst->nInfo);
+        free(inst->nInfoLengths);
+        free(inst->nInfoIndex);
+  
         for (int i=0; i<inst->threads; i++)
         {
             free(inst->ogBd[i]);
@@ -1471,19 +1501,16 @@ double computeStrongBranchingOnConstraint(instance* inst, double obj, int* cstat
  * the lp relaxation of the two childs.
  * It returns the index of the best constraint found and its product score.
  *
- * @param env Cplex environment
- * @param lp Cplex problem 
  * @param inst instance of the scp
  * @param rootSolution solution of the parent node
  * @param obj object value of parent node
  * @param cstat base of the parent node
  * @param rstat base of the parent node
- * @param numCols number of variables i the parent node
- * @param indices array of indices used to restore bounds
- * @param lu specify the higher bound
- * @param originalbd specify the value of the higher bound
+ * @param ogNumCols original number of columns
+ * @param threadNum index of the current thread
  * @param a contains the index of the best constraint found
- */ 
+ */
+
 double computeConstraintsProductScore(instance* inst, double* rootSolution, double obj, int* cstat, int* rstat, int ogNumCols, int threadNum, int* a)
 {
     CPXENVptr env = inst->envs[threadNum];
@@ -1494,8 +1521,7 @@ double computeConstraintsProductScore(instance* inst, double* rootSolution, doub
     double progressPerc = progressPercStep;
     
     double currScore=0;
-
-    
+   
     // cycle on all the sets
     for(int i=0; i < inst->numIntersections; i++)
     {
@@ -1517,6 +1543,76 @@ double computeConstraintsProductScore(instance* inst, double* rootSolution, doub
             Max=currScore;
             *a=i;
         }
+    }
+    return Max;    
+}
+
+
+
+/**
+ * Called inside the callback that performs strong branching. 
+ * Cycles through all the branching constraints, for the ones that can be used it computes
+ * the lp relaxation of the two childs.
+ * It returns the index of the best constraint found and its product score.
+ *
+ * @param inst instance of the scp
+ * @param rootSolution solution of the parent node
+ * @param obj object value of parent node
+ * @param cstat base of the parent node
+ * @param rstat base of the parent node
+ * @param threadNum index of the current thread
+ * @param a contains the index of the best constraint found
+ */
+
+double computeConstraintsProductScoreContainingVar(instance* inst, double* rootSolution, double obj, int* cstat, int* rstat, int ogNumCols, int bestVar, int threadNum, int* a)
+{
+    CPXENVptr env = inst->envs[threadNum];
+    CPXLPptr lp = inst->lps[threadNum];
+
+    double epsilon = epsilon;
+    double Max=0;
+    double progressPercStep = 10.0/100;
+    double progressPerc = progressPercStep;
+    
+    double currScore=0;
+   
+
+   int *constraintCounter = inst->constraintCounter; 
+    int **varConstrTable = inst->varConstrTable;
+    int **intersections = inst->intersections;
+    int *intersectionsLengths = inst->intersectionsLengths;
+    
+    int constCounter = constraintCounter[bestVar]; 
+    //printf("Number of constraint containing the variable = %d\n",constCounter);
+    // cycle the constraints that contain the best variable
+    
+    for (int i = 0; i < constCounter; i++)
+    {
+        double sum = 0;
+        // cycle all the variables in the intersection and get the sum
+        
+        int constraintIndex = varConstrTable[bestVar][i];
+        int *constraint = intersections[constraintIndex];
+        int constraintLength = intersectionsLengths[constraintIndex];
+        
+        // printf("considering constraint :");
+        // print_array_int(constraint, constraintLength);
+        
+        for (int k = 0; k < constraintLength; k++)
+        {
+            sum += rootSolution[constraint[k]];
+        }
+        
+        if (sum > epsilon * constraintLength && sum < 1 - epsilon * constraintLength) // set covering
+        {
+            currScore = computeStrongBranchingOnConstraint(inst, obj, cstat, rstat, ogNumCols, threadNum, constraintIndex);
+            //printf("currScore = %f\n", currScore);
+            if (Max < currScore)
+            {
+                Max = currScore;
+                *a = constraintIndex;
+            }
+        }       
     }
     return Max;    
 }
@@ -1646,6 +1742,59 @@ double computeVariableProductScore(instance* inst, double* rootSolution, double 
     //printf("variableProduct score = %f\n",currScore);
     return currScore;    
 }
+
+
+void saveNodeInfo(CPXCENVptr env, void *cbdata, int wherefrom, int threadNum, instance* inst)
+{
+
+    double epsilon = 0.0001;
+
+    if(inst->nInfoIndex[threadNum] == inst->nInfoLengths[threadNum])
+    {
+        //printf("resizing info, currlen = %d, currindex = %d \n",inst->nInfoLengths[threadNum],inst->nInfoIndex[threadNum]);
+        //resize nInfo
+        inst->nInfoLengths[threadNum]*=2;
+        inst->nInfo[threadNum] = (nodeInfo*) realloc(inst->nInfo[threadNum], inst->nInfoLengths[threadNum]*sizeof(nodeInfo));
+    }
+
+    int node;
+    CPXgetcallbackinfo(env, cbdata, wherefrom, CPX_CALLBACK_INFO_NODE_COUNT, &node);
+    
+    double value;
+    CPXgetcallbacknodeobjval(env, cbdata, wherefrom, &value);
+
+    int depth;
+    CPXgetcallbacknodeinfo(env, cbdata, wherefrom, 0, CPX_CALLBACK_INFO_NODE_DEPTH, &depth);
+    
+    double varFracPerc=0;
+    double *x = (double *)malloc(inst->num_cols * sizeof(double));
+
+    //printf("LP relaxation solved optimally it has the objective %f\n", obj);
+    CPXgetcallbacknodex(env, cbdata, wherefrom, x, 0, inst->num_cols - 1);
+
+    for(int i = 0; i<inst->num_cols; i++)
+    {
+        if (x[i]>epsilon && x[i]< 1 - epsilon)
+        {
+            varFracPerc++;
+        }
+    }
+   
+    varFracPerc = varFracPerc/inst->num_cols*100;
+    int index = inst->nInfoIndex[threadNum];
+    nodeInfo* nInfoThread = inst->nInfo[threadNum];
+    
+    nInfoThread[index].num = node;
+    nInfoThread[index].value = value;
+    nInfoThread[index].depth = depth;
+    nInfoThread[index].varFracPerc = varFracPerc;
+    printf("node = %d, value = %f, depth = %d, percentage of fractional variables = %f\n", inst->nInfo[threadNum][inst->nInfoIndex[threadNum]].num, inst->nInfo[threadNum][inst->nInfoIndex[threadNum]].value, inst->nInfo[threadNum][inst->nInfoIndex[threadNum]].depth, inst->nInfo[threadNum][inst->nInfoIndex[threadNum]].varFracPerc);
+
+    inst->nInfoIndex[threadNum]++;
+    free(x);
+}
+
+
 /** 
  * Callback function called each time that Cplex decides to branch.
  * It evaluates if the CPLEX proposed branch is better than the one based on the constraints intersections.
@@ -1732,6 +1881,7 @@ int legacyBranchingCallbackStrong(CPXCENVptr env, void *cbdata, int wherefrom, v
         inst->defaultBranching[threadNum]++;
         end = second();
         inst->timeInCallback[threadNum] += end - start;
+        saveNodeInfo(env, cbdata, wherefrom, threadNum, inst);
         return 0;
     }
     else
@@ -1786,8 +1936,15 @@ int legacyBranchingCallbackStrong(CPXCENVptr env, void *cbdata, int wherefrom, v
             
             CPXgetub(inst->envs[threadNum], inst->lps[threadNum], inst->ogBd[threadNum], 0, cur_numcols-1);
 
-            Max = computeConstraintsProductScore(inst, x, obj, cstat, rstat, cur_numcols, threadNum, &i);
-
+            if(inst->constraintBranchVer == 1)
+            {
+                Max = computeConstraintsProductScoreContainingVar(inst, x, obj, cstat, rstat, cur_numcols, indices[0], threadNum, &i);
+            }
+            else
+            {
+                Max = computeConstraintsProductScore(inst, x, obj, cstat, rstat, cur_numcols, threadNum, &i);
+            }
+            
             double variableProductScore = computeVariableProductScore(inst, x, obj, threadNum, bdcnt, nodebeg, indices, lu, bd);
 
             // // get pseudocosts on the variables computed by CPLEX
@@ -1818,6 +1975,7 @@ int legacyBranchingCallbackStrong(CPXCENVptr env, void *cbdata, int wherefrom, v
             }
             end = second();
             inst->timeInCallback[threadNum] += end - start;
+            saveNodeInfo(env, cbdata, wherefrom, threadNum, inst);
             return 0;
         }
         else
@@ -1825,10 +1983,12 @@ int legacyBranchingCallbackStrong(CPXCENVptr env, void *cbdata, int wherefrom, v
             inst->defaultBranching[threadNum]++;
             end = second();
             inst->timeInCallback[threadNum] += end - start;
+            saveNodeInfo(env, cbdata, wherefrom, threadNum, inst);
             return 0;
         }
     }
 }
+
 
 void sortIntersectionWRTreducedCosts(CPXCENVptr env, void *cbdata, int wherefrom, instance *inst)
 {
@@ -1892,11 +2052,6 @@ void sortIntersectionWRTreducedCosts(CPXCENVptr env, void *cbdata, int wherefrom
     free(reducedCosts);
 }
           
-double computeStrongBranchingOnCPLEXVariable()
-{
-
-}
-
 
 void getBase(CPXCENVptr env, CPXLPptr lp, instance* inst, int threadNum, int cur_numcols, int cur_numrows)
 {
@@ -1915,4 +2070,50 @@ void getBase(CPXCENVptr env, CPXLPptr lp, instance* inst, int threadNum, int cur
         inst->rstats[threadNum] = (int*) realloc(inst->rstats[threadNum], inst->rstatDims[threadNum]*sizeof(int)); 
     }
     CPXgetbase (env, lp, inst->cstats[threadNum], inst->rstats[threadNum]);
+}
+
+
+/**
+ * Save the details of the computations in a .csv file
+ * @param inst instance of the scp
+ * 
+ */
+
+void saveNodeInfoToFile(instance *inst)
+{
+    char fileName[1000];
+    char folder[1000];
+    int length = strlen(inst->input_file);
+    int start = 21;
+    int end = length-3;
+    char input_file[100];
+    int i=0;
+    for(; i<end-start; i++)
+    {
+        input_file[i]=inst->input_file[i+start];
+    }
+    input_file[i]=0;
+    sprintf(folder, "../results/NodeInfo/%d_%d_%d_%.1f_%d_%d_%d_%d_%d", inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead, inst->reverse, inst->repeatedFirst, inst->sort, inst->average);
+    sprintf(fileName, "../results/NodeInfo/%d_%d_%d_%.1f_%d_%d_%d_%d_%d/%s_%d.csv", inst->callback, inst->branching, inst->constraintBranchVer, inst->delta, inst->lookAhead, inst->reverse, inst->repeatedFirst, inst->sort, inst->average, input_file, inst->seed);
+    
+    
+    printf("Saving results in file %s\n", fileName);
+    // create folder if not present
+    struct stat st = {0};
+    if (stat(folder, &st) == -1) {
+        mkdir(folder, 0700);
+    }
+
+    FILE *f;
+    f = fopen(fileName, "w");
+    fprintf(f, "Instance,Seed,NodeIndex,Gap,depth,percentageFracVars\n"); 
+    
+    for(int i=0; i<inst->threads; i++)
+    {
+        for(int j=0; j < inst->nInfoIndex[i]; j++)
+        {
+            fprintf(f, "%s,%d,%d,%f,%d,%f\n", inst->input_file, inst->seed, inst->nInfo[i][j].num, (abs(inst->nInfo[i][j].value - inst->bestVal))/inst->bestVal, inst->nInfo[i][j].depth, inst->nInfo[i][j].varFracPerc); 
+        }    
+    }
+    fclose(f);
 }

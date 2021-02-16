@@ -25,7 +25,20 @@
 
 #define EPS 1e-5	//CPLEX precision
 
-               
+
+/**
+ * Data structure containing information about a single node during the computation.
+*/
+
+typedef struct
+{
+	int num;
+	double value;
+	int depth;
+	double varFracPerc;
+} nodeInfo;
+
+
 /**
  * Data structure containing everything useful to an execution 
  * and the solution computed by the CPLEX library.
@@ -131,7 +144,14 @@ typedef struct {
 	double** ogBd;
 	char** ogLu;
 	int** ogIndices;
+
+	nodeInfo** nInfo;
+	int* nInfoLengths;
+	int* nInfoIndex;
+
 } instance;
+
+
 
 // functions to compute the solutions to the TSP using the CPLEX library
 int scpopt(instance *inst);
@@ -176,6 +196,8 @@ double computeStrongBranchingOnConstraint(instance* inst, double obj, int* cstat
 void getBase(CPXCENVptr env, CPXLPptr lp, instance* inst, int threadNum, int cur_numcols, int cur_numrows);
 
 double computeVariableProductScore(instance* inst, double* rootSolution, double obj, int threadNum, int bdcnt, const int *nodebeg, const int* indices, const char *lu, const double *bd);
+
+void saveNodeInfoToFile(instance *inst);
 
 
 #endif   /* scp_H_ */
