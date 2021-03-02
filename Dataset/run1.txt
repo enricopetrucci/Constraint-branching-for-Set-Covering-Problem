@@ -1,0 +1,40 @@
+srun ./main.o -file ../Dataset/ReducedLP/scpb2_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpb4_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpc2_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpc3_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpclr10_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpclr11_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpclr12_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpclr13_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+
+
+srun ./main.o -file ../Dataset/ReducedLP/scpd1_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpd2_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpd3_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpd4_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnre1_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnre2_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnre3_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnre4_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+
+
+
+srun ./main.o -file ../Dataset/ReducedLP/scpnre5_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnrf1_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnrf2_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnrf3_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnrf4_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnrf5_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnrg1_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnrg2_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+
+
+
+srun ./main.o -file ../Dataset/ReducedLP/scpnrg3_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnrg4_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnrg5_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnrh1_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnrh2_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnrh3_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnrh4_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1
+srun ./main.o -file ../Dataset/ReducedLP/scpnrh5_reduced.lp -callback 1 -branching 1 constraintBranchVer 2 -delta 2 -seed 0 -timelimit 3600 -threads 0 -storeResults 1

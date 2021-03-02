@@ -1,0 +1,11 @@
+Instance,Time,Best Int.,Best Val.,MIP Gap,Nodes,Nodes Left,Constraint Branching,Varaible Branching,Seed,Threads,Callback,Branching,constraintBranchVer,delta,lookAhead,Reverse,RepeatedFirst,Sort,Average,PreprocessingPercentage
+../Dataset/ReducedLP/scpd3_reduced.lp,0.744607,72.0,72.0,0.0,895,0,46,483,338,4,1,1,3,5.0,100,1,0,2,0,6.901658
+../Dataset/ReducedLP/scpd3_reduced.lp,0.8329559999999999,72.0,72.0,0.0,1111,0,78,571,1867,4,1,1,3,5.0,100,1,0,2,0,6.876225
+../Dataset/ReducedLP/scpd3_reduced.lp,0.832139,72.0,72.0,0.0,1000,0,59,521,1997,4,1,1,3,5.0,100,1,0,2,0,6.040099
+../Dataset/ReducedLP/scpd3_reduced.lp,0.788998,72.0,72.0,0.0,882,0,62,412,3363,4,1,1,3,5.0,100,1,0,2,0,6.604163000000001
+../Dataset/ReducedLP/scpd3_reduced.lp,0.754146,72.0,72.0,0.0,801,0,54,360,5538,4,1,1,3,5.0,100,1,0,2,0,6.895967
+../Dataset/ReducedLP/scpd3_reduced.lp,0.836124,72.0,72.0,0.0,948,0,53,511,6822,4,1,1,3,5.0,100,1,0,2,0,6.141782
+../Dataset/ReducedLP/scpd3_reduced.lp,0.788071,72.0,72.0,0.0,838,0,47,410,8007,4,1,1,3,5.0,100,1,0,2,0,6.455387
+../Dataset/ReducedLP/scpd3_reduced.lp,0.756033,72.0,72.0,0.0,871,0,42,449,8927,4,1,1,3,5.0,100,1,0,2,0,7.160562
+../Dataset/ReducedLP/scpd3_reduced.lp,0.798309,72.0,72.0,0.0,768,0,42,391,8957,4,1,1,3,5.0,100,1,0,2,0,7.0251410000000005
+../Dataset/ReducedLP/scpd3_reduced.lp,0.8863110000000001,72.0,72.0,0.0,1261,0,59,741,9397,4,1,1,3,5.0,100,1,0,2,0,5.878821

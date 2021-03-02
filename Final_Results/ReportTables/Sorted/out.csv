@@ -1,0 +1,23 @@
+Instance,Time,Int,Gap,Nodes,Nodes L,Var B,Constr B
+../Dataset/ReducedLP/scpb2_reduced.lp,0.4736949999999999,76.0,0.0,512.4,0.0,229.5,40.2
+../Dataset/ReducedLP/scpb4_reduced.lp,0.5376152,79.0,0.0,729.3,0.0,356.4,38.8
+../Dataset/ReducedLP/scpc2_reduced.lp,0.3604297,219.0,0.0,52.2,0.0,15.5,11.9
+../Dataset/ReducedLP/scpc3_reduced.lp,0.40451249999999994,243.0,0.0,172.6,0.0,67.9,24.1
+../Dataset/ReducedLP/scpclr10_reduced.lp,15.0252759,25.0,0.0,36619.2,0.0,16367.5,2665.5
+../Dataset/ReducedLP/scpclr11_reduced.lp,1500.0926018,23.0,0.0,770825.2,0.0,376205.7,27439.9
+../Dataset/ReducedLP/scpd1_reduced.lp,0.48106410000000005,60.0,0.0,114.9,0.0,39.9,18.8
+../Dataset/ReducedLP/scpd2_reduced.lp,1.0014151,66.0,0.0,1477.9,0.0,709.2,67.0
+../Dataset/ReducedLP/scpd3_reduced.lp,0.7763057,72.0,0.0,959.1,0.0,498.6,37.0
+../Dataset/ReducedLP/scpd4_reduced.lp,0.6703893000000001,62.0,0.0,544.9,0.0,285.3,38.3
+../Dataset/ReducedLP/scpnre1_reduced.lp,15.962852399999997,29.0,0.0,42883.1,0.0,19760.7,2366.8
+../Dataset/ReducedLP/scpnre2_reduced.lp,131.20220400000002,30.0,0.0,340284.0,0.0,190241.8,32480.6
+../Dataset/ReducedLP/scpnre3_reduced.lp,9.0302037,27.0,0.0,18579.9,0.0,10639.3,657.6
+../Dataset/ReducedLP/scpnre4_reduced.lp,26.304607200000003,28.0,0.0,68128.0,0.0,40147.6,4698.4
+../Dataset/ReducedLP/scpnre5_reduced.lp,4.8764838,28.0,0.0,9402.0,0.0,4449.8,440.2
+../Dataset/ReducedLP/scpnrf1_reduced.lp,12.0260471,14.0,0.0,37142.0,0.0,14434.7,4751.8
+../Dataset/ReducedLP/scpnrf2_reduced.lp,7.225693700000001,15.0,0.0,19292.2,0.0,8044.4,1928.8
+../Dataset/ReducedLP/scpnrf3_reduced.lp,5.2646068999999995,14.0,0.0,8485.3,0.0,5019.7,817.2
+../Dataset/ReducedLP/scpnrf4_reduced.lp,24.620833499999996,14.0,0.0,68778.8,0.0,32285.8,7563.5
+../Dataset/ReducedLP/scpnrf5_reduced.lp,38.09254159999999,13.0,0.0,111652.4,0.0,57654.8,13460.5
+../Dataset/ReducedLP/scpnrg1_reduced.lp,3370.7324585,176.0,0.0045057,2110659.0,173892.7,1103340.3,54662.0
+../Dataset/ReducedLP/scpnrg2_reduced.lp,1474.9718129,154.0,0.0,1085906.4,0.0,624575.0,21504.1

@@ -1,0 +1,7 @@
+./main.o -file ../Dataset/LPRail/rail2536,lp -extractPreprocessing 1
+./main.o -file ../Dataset/LPRail/rail4872.lp -extractPreprocessing 1
+./main.o -file ../Dataset/LPRail/rail2586.lp -extractPreprocessing 1
+./main.o -file ../Dataset/LPRail/rail516.lp -extractPreprocessing 1
+./main.o -file ../Dataset/LPRail/rail4284.lp -extractPreprocessing 1
+./main.o -file ../Dataset/LPRail/rail507.lp -extractPreprocessing 1
+./main.o -file ../Dataset/LPRail/rail582.lp -extractPreprocessing 1

@@ -1,10 +1,4 @@
 .vscode/
 build/
-Dataset/
-*.csv
-*.txt
-Final_Results
 release
 slurmjobs
-slurmJobsGenerator
-TreePlots

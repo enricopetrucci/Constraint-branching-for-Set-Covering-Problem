@@ -1,0 +1,11 @@
+Instance,Seed,NodeIndex,Gap,depth,percentageFracVars
+../Dataset/ReducedLP/scpc2_reduced.lp,338,0,0.022831,0,33.753149
+../Dataset/ReducedLP/scpc2_reduced.lp,338,1,0.018265,1,30.226700
+../Dataset/ReducedLP/scpc2_reduced.lp,338,2,0.004566,2,26.448363
+../Dataset/ReducedLP/scpc2_reduced.lp,338,3,0.000000,2,22.166247
+../Dataset/ReducedLP/scpc2_reduced.lp,338,2,0.009132,2,12.594458
+../Dataset/ReducedLP/scpc2_reduced.lp,338,4,0.000000,3,20.403023
+../Dataset/ReducedLP/scpc2_reduced.lp,338,9,0.000000,4,8.060453
+../Dataset/ReducedLP/scpc2_reduced.lp,338,10,0.000000,5,0.000000
+../Dataset/ReducedLP/scpc2_reduced.lp,338,1,0.013699,1,27.455919
+../Dataset/ReducedLP/scpc2_reduced.lp,338,3,0.004566,2,28.715365

@@ -1,0 +1,12 @@
+Instance,Seed,NodeIndex,Gap,depth,percentageFracVars
+../Dataset/ReducedLP/scpd1_reduced.lp,9397,0,0.066667,0,35.200000
+../Dataset/ReducedLP/scpd1_reduced.lp,9397,1,0.050000,1,35.600000
+../Dataset/ReducedLP/scpd1_reduced.lp,9397,2,0.050000,2,35.600000
+../Dataset/ReducedLP/scpd1_reduced.lp,9397,5,0.016667,3,25.200000
+../Dataset/ReducedLP/scpd1_reduced.lp,9397,6,0.016667,4,25.200000
+../Dataset/ReducedLP/scpd1_reduced.lp,9397,5,0.033333,3,30.400000
+../Dataset/ReducedLP/scpd1_reduced.lp,9397,6,0.033333,4,30.400000
+../Dataset/ReducedLP/scpd1_reduced.lp,9397,1,0.050000,1,33.600000
+../Dataset/ReducedLP/scpd1_reduced.lp,9397,2,0.050000,2,33.600000
+../Dataset/ReducedLP/scpd1_reduced.lp,9397,3,0.033333,3,28.800000
+../Dataset/ReducedLP/scpd1_reduced.lp,9397,4,0.033333,4,28.800000

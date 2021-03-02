@@ -53,9 +53,7 @@ int scpopt(instance *inst)
     inst->num_cols = CPXgetnumcols(env, lp);
     inst->num_rows = CPXgetnumrows(env, lp);
 
-    printf(" & %d & %d \n", inst->num_rows, inst->num_cols);
 
-    printf("break");
     if (inst->callback == 0)
     {
         solveUsingGenericCallback(env, lp, inst);
@@ -942,7 +940,7 @@ void solveUsingLegacyCallback(CPXENVptr env, CPXLPptr lp, instance *inst)
     if (inst->branching == 3 || inst->branching == 2 || (inst->branching == 1 && inst->constraintBranchVer >= 4))
     {
 
-        saveNodeInfoToFile(inst);
+        //saveNodeInfoToFile(inst);
         for(int i=0; i<inst->threads; i++)
         {
             free(inst->nInfo[i]);

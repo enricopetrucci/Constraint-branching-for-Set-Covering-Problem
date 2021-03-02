@@ -1,0 +1,6 @@
+Instance,Time,Best Int.,Best Val.,MIP Gap,Nodes,Nodes Left,Constraint Branching,Varaible Branching,Seed,Threads,Callback,Branching,constraintBranchVer,delta,lookAhead,Reverse,RepeatedFirst,Sort,Average,PreprocessingPercentage
+../Dataset/ReducedLP/scpnre3_reduced.lp,7634.776794,27.000000,27.000000,0.000000,2453,0,1151,155,338,4,1,3,1,1.0,0,0,0,0,0,0.008541
+../Dataset/ReducedLP/scpnre3_reduced.lp,9153.247748,27.000000,27.000000,0.000000,3552,0,1659,211,1867,4,1,3,1,1.0,0,0,0,0,0,0.002412
+../Dataset/ReducedLP/scpnre3_reduced.lp,10096.229142,27.000000,27.000000,0.000000,4490,0,2113,228,6822,4,1,3,1,1.0,0,0,0,0,0,0.002143
+../Dataset/ReducedLP/scpnre3_reduced.lp,6682.316962,27.000000,27.000000,0.000000,2341,0,1087,118,8927,4,1,3,1,1.0,0,0,0,0,0,0.003266
+../Dataset/ReducedLP/scpnre3_reduced.lp,10911.776211,27.000000,27.000000,0.000000,4815,0,2263,273,9397,4,1,3,1,1.0,0,0,0,0,0,0.001998

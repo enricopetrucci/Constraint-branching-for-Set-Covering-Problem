@@ -1,0 +1,11 @@
+Instance,Time,Best Int.,Best Val.,MIP Gap,Nodes,Nodes Left,Constraint Branching,Varaible Branching,Seed,Threads,Callback,Branching,constraintBranchVer,delta,lookAhead,Reverse,RepeatedFirst,Sort,Average,PreprocessingPercentage
+../Dataset/ReducedLP/scpnre1_reduced.lp,16.406967,29.000000,29.000000,0.000000,41289,0,7489,13557,1867,4,1,1,3,2.0,200,0,1,0,0,1.332468
+../Dataset/ReducedLP/scpnre1_reduced.lp,16.337532,29.000000,29.000000,0.000000,43532,0,6554,15716,3363,4,1,1,3,2.0,200,0,1,0,0,1.294400
+../Dataset/ReducedLP/scpnre1_reduced.lp,17.955309,29.000000,29.000000,0.000000,44979,0,6573,16440,6822,4,1,1,3,2.0,200,0,1,0,0,1.167145
+../Dataset/ReducedLP/scpnre1_reduced.lp,14.434543,29.000000,29.000000,0.000000,38789,0,5694,14168,8927,4,1,1,3,2.0,200,0,1,0,0,1.516268
+../Dataset/ReducedLP/scpnre1_reduced.lp,14.905323,29.000000,29.000000,0.000000,39587,0,6433,13824,9397,4,1,1,3,2.0,200,0,1,0,0,1.421733
+../Dataset/ReducedLP/scpnre1_reduced.lp,18.063517,29.000000,29.000000,0.000000,46637,0,7624,16207,338,4,1,1,3,2.0,200,0,1,0,0,1.197031
+../Dataset/ReducedLP/scpnre1_reduced.lp,13.603601,29.000000,29.000000,0.000000,36421,0,4932,13704,1997,4,1,1,3,2.0,200,0,1,0,0,1.541376
+../Dataset/ReducedLP/scpnre1_reduced.lp,14.887601,29.000000,29.000000,0.000000,39688,0,5383,14923,5538,4,1,1,3,2.0,200,0,1,0,0,1.403253
+../Dataset/ReducedLP/scpnre1_reduced.lp,16.844757,29.000000,29.000000,0.000000,42745,0,6270,15602,8007,4,1,1,3,2.0,200,0,1,0,0,1.256934
+../Dataset/ReducedLP/scpnre1_reduced.lp,17.809987,29.000000,29.000000,0.000000,44435,0,6930,15763,8957,4,1,1,3,2.0,200,0,1,0,0,1.177181
